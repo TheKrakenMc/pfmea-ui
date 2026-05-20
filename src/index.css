@@ -1,111 +1,212 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ─── Class-Based Dark Mode Variant Definition ─── */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* ──────────────────────────────────────────────────────────────
+   PFMEA Industrial Design System — TailwindCSS v4 Theme
+   ────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* ─── Industrial Color Palette (Default: Light Mode) ─── */
+  --color-steel-950: #f8fafc;
+  --color-steel-900: #ffffff;
+  --color-steel-850: #f1f5f9;
+  --color-steel-800: #e2e8f0;
+  --color-steel-700: #cbd5e1;
+  --color-steel-600: #94a3b8;
+  --color-steel-500: #64748b;
+  --color-steel-400: #475569;
+  --color-steel-300: #334155;
+  --color-steel-200: #1e293b;
+  --color-steel-100: #0f172a;
+  --color-steel-50:  #020617;
+
+  /* ─── Accent / Interactive ────────────────────── */
+  --color-forge-500: #3b82f6;
+  --color-forge-400: #60a5fa;
+  --color-forge-300: #93bbfd;
+  --color-forge-600: #2563eb;
+  --color-forge-700: #1d4ed8;
+  --color-forge-glow: rgba(59, 130, 246, 0.08);
+
+  /* ─── Critical / Alert ────────────────────────── */
+  --color-alert-red: #ef4444;
+  --color-alert-red-glow: rgba(239, 68, 68, 0.08);
+  --color-alert-amber: #f59e0b;
+  --color-alert-amber-glow: rgba(245, 158, 11, 0.08);
+
+  /* ─── Success / Approved ──────────────────────── */
+  --color-success-500: #10b981;
+  --color-success-400: #34d399;
+  --color-success-glow: rgba(16, 185, 129, 0.08);
+
+  /* ─── Review Status ───────────────────────────── */
+  --color-review-500: #8b5cf6;
+  --color-review-glow: rgba(139, 92, 246, 0.08);
+
+  /* ─── Typography ──────────────────────────────── */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+}
+
+/* ─── Theme Overrides (Dark Mode) ────────────────── */
+.dark {
+  --color-steel-950: #0a0c10;
+  --color-steel-900: #0f1218;
+  --color-steel-850: #131721;
+  --color-steel-800: #181d29;
+  --color-steel-700: #1e2536;
+  --color-steel-600: #283044;
+  --color-steel-500: #3a4560;
+  --color-steel-400: #5a6580;
+  --color-steel-300: #8892a8;
+  --color-steel-200: #b0b8c8;
+  --color-steel-100: #d8dde8;
+  --color-steel-50:  #eef0f5;
+
+  --color-forge-glow: rgba(59, 130, 246, 0.15);
+  --color-alert-red-glow: rgba(239, 68, 68, 0.15);
+  --color-alert-amber-glow: rgba(245, 158, 11, 0.15);
+  --color-success-glow: rgba(16, 185, 129, 0.15);
+  --color-review-glow: rgba(139, 92, 246, 0.15);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Global Styles
+   ────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   margin: 0;
+  padding: 0;
+  background-color: var(--color-steel-950);
+  color: var(--color-steel-200);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+/* ──────────────────────────────────────────────────────────────
+   Custom Scrollbar (Webkit)
+   ────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+::-webkit-scrollbar-track {
+  background: var(--color-steel-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-steel-600);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-steel-500);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Industrial Grid Background Pattern
+   ────────────────────────────────────────────────────────────── */
+
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Table Utilities
+   ────────────────────────────────────────────────────────────── */
+
+.table-row-stripe:nth-child(even) {
+  background-color: rgba(226, 232, 240, 0.4);
+}
+
+.dark .table-row-stripe:nth-child(even) {
+  background-color: rgba(30, 37, 54, 0.5);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Pulse Glow Animation for Unsaved Indicator
+   ────────────────────────────────────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.6); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Drag Handle Cursor
+   ────────────────────────────────────────────────────────────── */
+
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Focus Ring Utility
+   ────────────────────────────────────────────────────────────── */
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-forge-500);
+  outline-offset: 2px;
   border-radius: 4px;
-  color: var(--text-h);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* ──────────────────────────────────────────────────────────────
+   Glass Card Effect
+   ────────────────────────────────────────────────────────────── */
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 213, 225, 0.6);
+}
+
+.dark .glass-card {
+  background: rgba(15, 18, 24, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(42, 50, 68, 0.6);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Transitions
+   ────────────────────────────────────────────────────────────── */
+
+.transition-industrial {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
