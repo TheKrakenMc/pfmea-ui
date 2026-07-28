@@ -11,14 +11,16 @@ import type { CriticalFlag as CriticalFlagType } from '../../types/flowchart.typ
 interface CriticalFlagProps {
   value: CriticalFlagType;
   onChange: (next: CriticalFlagType) => void;
+  disabled?: boolean;
 }
 
 const CYCLE: CriticalFlagType[] = ['none', 'CC', 'SC'];
 
-export function CriticalFlag({ value, onChange }: CriticalFlagProps) {
+export function CriticalFlag({ value, onChange, disabled }: CriticalFlagProps) {
   const { t } = useTranslation();
 
   const handleClick = () => {
+    if (disabled) return;
     const currentIndex = CYCLE.indexOf(value);
     const nextIndex = (currentIndex + 1) % CYCLE.length;
     onChange(CYCLE[nextIndex]);
@@ -28,9 +30,10 @@ export function CriticalFlag({ value, onChange }: CriticalFlagProps) {
     <motion.button
       type="button"
       onClick={handleClick}
+      disabled={disabled}
       title={t('flags.tooltip')}
-      whileTap={{ scale: 0.9 }}
-      className="focus-ring relative flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-industrial select-none cursor-pointer"
+      whileTap={disabled ? {} : { scale: 0.9 }}
+      className={`focus-ring relative flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-industrial select-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       style={getStyle(value)}
     >
       <motion.span

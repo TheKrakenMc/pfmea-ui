@@ -1,0 +1,16 @@
+[
+  "Temperatura (°C)",
+  "Presión (Bar)",
+  "Velocidad (RPM)",
+  "Tiempo (s)",
+  "Torque (Nm)",
+  "Fuerza (kN)",
+  "Voltaje (V)",
+  "Corriente (A)",
+  "Flujo (L/min)",
+  "Concentración (%)",
+  "Distancia (mm)",
+  "Ángulo (°)",
+  "Viscosidad (cP)",
+  "Humedad (%)"
+]

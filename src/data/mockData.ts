@@ -83,6 +83,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'none',
     symbolType: 'operation',
     notes: 'Verificar certificados de calidad del proveedor',
+    responsibleDepartment: 'Logística',
   },
   {
     id: 'step-002',
@@ -93,6 +94,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'CC',
     symbolType: 'operation',
     notes: 'Temperatura de molde: 80±5°C',
+    responsibleDepartment: 'Producción',
   },
   {
     id: 'step-003',
@@ -103,6 +105,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'none',
     symbolType: 'inspection',
     notes: '',
+    responsibleDepartment: 'Calidad',
   },
   {
     id: 'step-004',
@@ -113,6 +116,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'SC',
     symbolType: 'operation',
     notes: 'Parámetros por WPS-2026-014',
+    responsibleDepartment: 'Producción',
   },
   {
     id: 'step-005',
@@ -123,6 +127,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'CC',
     symbolType: 'inspection',
     notes: 'Frecuencia: cada 50 piezas',
+    responsibleDepartment: 'Calidad',
   },
   {
     id: 'step-006',
@@ -133,6 +138,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'none',
     symbolType: 'operation',
     notes: 'Cabina 3, lote mínimo 200 piezas',
+    responsibleDepartment: 'Producción',
   },
   {
     id: 'step-007',
@@ -143,6 +149,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'SC',
     symbolType: 'inspection',
     notes: 'Torque de clips: 2.5 ± 0.3 Nm',
+    responsibleDepartment: 'Calidad',
   },
   {
     id: 'step-008',
@@ -153,6 +160,7 @@ export const SEED_STEPS: FlowchartStep[] = [
     criticalFlag: 'none',
     symbolType: 'operation',
     notes: 'Rack BMW tipo KLT-6429',
+    responsibleDepartment: 'Materiales',
   },
 ];
 

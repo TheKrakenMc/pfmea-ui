@@ -13,11 +13,13 @@ import {
 } from '@hello-pangea/dnd';
 import { Plus, GitBranch } from 'lucide-react';
 import { useFlowchart } from '../../hooks/useFlowchart';
+import { useFlowchartLookups } from '../../hooks/useFlowchartLookups';
 import { FlowchartRow } from './FlowchartRow';
 
 export function FlowchartTable() {
   const { t } = useTranslation();
   const { state, reorderSteps, addStep } = useFlowchart();
+  const { isLoading } = useFlowchartLookups();
 
   const handleDragEnd = useCallback(
     (result: DropResult) => {
@@ -29,7 +31,22 @@ export function FlowchartTable() {
   );
 
   return (
-    <div className="glass-card overflow-hidden rounded-2xl">
+    <div className="glass-card overflow-hidden rounded-2xl relative">
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-steel-950/40 backdrop-blur-[2px]"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-steel-700 border-t-forge-500" />
+              <span className="text-sm font-medium text-steel-200">{t('common.loadingData', 'Cargando datos...')}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Table Header Bar */}
       <div className="flex items-center justify-between border-b border-steel-700/50 px-6 py-3">
         <div className="flex items-center gap-2">
@@ -90,21 +107,26 @@ export function FlowchartTable() {
                   <th className="w-16 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
                     {t('table.sequence')}
                   </th>
-                  <th className="min-w-[200px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
+                  <th className="w-[200px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
                     {t('table.operation')}
                   </th>
-                  <th className="min-w-[240px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
-                    {t('table.description')}
+                  <th className="w-[200px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
+                    {t('table.machinery', 'Maquinaria')}
                   </th>
+                  <th className="w-[150px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
+                    {t('table.location', 'Ubicación')}
+                  </th>
+                  <th className="w-[180px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
+                    {t('table.responsibleDepartment', 'Responsable')}
+                  </th>
+
                   <th className="w-24 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-steel-500">
                     {t('table.critical')}
                   </th>
                   <th className="w-28 px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
                     {t('table.symbol')}
                   </th>
-                  <th className="min-w-[180px] px-2 py-3 text-[10px] font-semibold uppercase tracking-widest text-steel-500 dark:text-steel-300">
-                    {t('table.notes')}
-                  </th>
+
                   <th className="w-24 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-steel-500">
                     {t('table.actions')}
                   </th>
@@ -114,11 +136,9 @@ export function FlowchartTable() {
               <Droppable droppableId="flowchart-steps">
                 {(provided) => (
                   <tbody ref={provided.innerRef} {...provided.droppableProps}>
-                    <AnimatePresence>
                       {state.steps.map((step, idx) => (
                         <FlowchartRow key={step.id} step={step} index={idx} />
                       ))}
-                    </AnimatePresence>
                     {provided.placeholder}
                   </tbody>
                 )}

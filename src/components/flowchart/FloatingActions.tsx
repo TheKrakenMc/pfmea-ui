@@ -5,28 +5,70 @@
 
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Save, Upload, Check, Loader2 } from 'lucide-react';
+import { Save, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useFlowchart } from '../../hooks/useFlowchart';
 import { useAutoSave } from '../../hooks/useAutoSave';
+import { ExportFlowchartButton } from '../flowcharts/ExportFlowchartButton';
+import { saveFlowchartSteps, updateFlowchart, type FlowchartStepPayload } from '../../services/flowchartService';
+import { toast } from 'sonner';
 
 export function FloatingActions() {
   const { t } = useTranslation();
-  const { state, saveLocally, dispatch } = useFlowchart();
-  const { isDirty, lastSaved } = useAutoSave();
+  const { state, saveLocally, dispatch, flowchartId } = useFlowchart();
+  const { isDirty } = useAutoSave();
 
-  const handlePublish = () => {
-    dispatch({ type: 'SET_STATUS', payload: { status: 'approved' } });
+
+
+  const handleSaveRemotely = async (forcedStatus?: string) => {
+    if (flowchartId === null) return;
+    
+    // Auto-save local draft before pushing
     saveLocally();
-  };
 
-  const formatLastSaved = (iso: string | null): string => {
-    if (!iso) return '';
-    const date = new Date(iso);
-    return date.toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    // Map local steps to the backend payload format
+    const stepsPayload: FlowchartStepPayload[] = state.steps.map((step, index) => ({
+      step_number: (index + 1) * 10,
+      custom_description: step.description || step.operationName || null,
+      technology_id: step.operationId ? Number(step.operationId) : null,
+      machinery_id: step.machineryId ?? null,
+      responsible_department: step.responsibleDepartment || 'Producción',
+      symbol_type: step.symbolType || 'operation',
+      critical_flag: step.criticalFlag || 'none',
+    }));
+
+    // Map local header to the backend update payload format
+    let headerStatus = forcedStatus;
+    if (!headerStatus) {
+      if (state.header.diagramStatus === 'approved') headerStatus = 'Approved';
+      else if (state.header.diagramStatus === 'in_review') headerStatus = 'In Review';
+      else headerStatus = 'Draft';
+    }
+    const headerPayload = {
+      title: state.header.partName || 'Sin título',
+      status: headerStatus,
+      customer_name: state.header.customer || '',
+      part_number: state.header.partNumber || '',
+      product_description: state.header.partName || '',
+    };
+
+    dispatch({ type: 'SET_SAVING', payload: { isSaving: true } });
+
+    try {
+      await Promise.all([
+        saveFlowchartSteps(flowchartId, stepsPayload),
+        updateFlowchart(flowchartId, headerPayload)
+      ]);
+      
+      dispatch({
+        type: 'MARK_SAVED',
+        payload: { timestamp: new Date().toISOString() },
+      });
+      toast.success(t('actions.successSave', 'Cambios guardados exitosamente'));
+    } catch (err) {
+      console.error('Remote save failed:', err);
+      dispatch({ type: 'SET_SAVING', payload: { isSaving: false } });
+      toast.error(t('actions.errorSave', 'Error al guardar los cambios en la base de datos'));
+    }
   };
 
   return (
@@ -39,55 +81,36 @@ export function FloatingActions() {
         visible: { transition: { staggerChildren: 0.1 } },
       }}
     >
-      {/* Sync Status Indicator */}
-      <motion.div
-        variants={{
-          hidden: { opacity: 0, y: 20 },
-          visible: { opacity: 1, y: 0 },
-        }}
-        className="flex items-center gap-2 rounded-full border border-steel-700 bg-steel-850/90 px-4 py-1.5 text-xs backdrop-blur-md"
-      >
-        {isDirty ? (
-          <>
-            <span className="inline-block h-2 w-2 rounded-full bg-alert-amber animate-pulse-glow" />
-            <span className="text-alert-amber">{t('actions.pending')}</span>
-          </>
-        ) : (
-          <>
-            <span className="inline-block h-2 w-2 rounded-full bg-success-500" />
-            <span className="text-success-400">
-              {t('actions.synced')}
-              {lastSaved && (
-                <span className="ml-1 text-steel-400">
-                  {formatLastSaved(lastSaved)}
-                </span>
-              )}
-            </span>
-          </>
-        )}
-      </motion.div>
+      {/* Unsaved Changes Indicator */}
+      {isDirty && (
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 },
+          }}
+          className="flex items-center gap-2 rounded-full border border-alert-amber/30 bg-alert-amber/10 px-4 py-1.5 text-xs backdrop-blur-md shadow-lg"
+        >
+          <AlertCircle size={14} className="text-alert-amber" />
+          <span className="text-alert-amber font-medium">{t('actions.unsavedChanges', 'Cambios sin guardar en base de datos')}</span>
+        </motion.div>
+      )}
 
-      {/* Publish / Approve Button */}
-      <motion.button
-        type="button"
-        onClick={handlePublish}
+      {/* Export PDF Button */}
+      <motion.div
         variants={{
           hidden: { opacity: 0, y: 20, scale: 0.9 },
           visible: { opacity: 1, y: 0, scale: 1 },
         }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        disabled={state.header.diagramStatus === 'approved'}
-        className="group flex items-center gap-2.5 rounded-2xl border border-steel-600 bg-steel-800/90 px-5 py-3 text-sm font-medium text-steel-200 shadow-xl backdrop-blur-md transition-industrial hover:border-forge-500/40 hover:text-forge-400 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
       >
-        <Upload size={18} />
-        <span>{t('actions.publish')}</span>
-      </motion.button>
+        <ExportFlowchartButton />
+      </motion.div>
 
-      {/* Save Locally Button */}
+
+
+      {/* Save Button */}
       <motion.button
         type="button"
-        onClick={saveLocally}
+        onClick={() => handleSaveRemotely()}
         variants={{
           hidden: { opacity: 0, y: 20, scale: 0.9 },
           visible: { opacity: 1, y: 0, scale: 1 },

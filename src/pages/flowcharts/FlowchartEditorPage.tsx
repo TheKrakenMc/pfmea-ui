@@ -4,19 +4,25 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FlowchartWorkspace } from '../../components/flowchart/FlowchartWorkspace';
+import { ArchivedBanner } from '../../components/flowchart/ArchivedBanner';
+import { ObsoleteWatermark } from '../../components/flowchart/ObsoleteWatermark';
+import { DocumentHistoryDrawer } from '../../components/flowchart/DocumentHistoryDrawer';
 import { useFlowchart } from '../../hooks/useFlowchart';
 import { getFlowchartById } from '../../services/flowchartService';
+import { listTechnologies } from '../../services/technologyService';
 import type { FlowchartState } from '../../types/flowchart.types';
 
 export const FlowchartEditorPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
-  const { dispatch } = useFlowchart();
+  const { state, dispatch } = useFlowchart();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('');
+  const [docStatus, setDocStatus] = useState<string>('');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -36,36 +42,58 @@ export const FlowchartEditorPage: React.FC = () => {
 
     async function fetchFlowchart() {
       try {
-        const data = await getFlowchartById(flowchartId);
+        const [data, techs] = await Promise.all([
+          getFlowchartById(flowchartId),
+          listTechnologies({ limit: 100 }).catch((err) => {
+            console.error('Failed to prefetch technologies', err);
+            return [];
+          }),
+        ]);
         if (cancelled) return;
 
         setTitle(data.title);
+        setDocStatus(data.status || '');
+
+        // Build a map of technology ID string -> name
+        const techMap = new Map<string, string>();
+        for (const t of techs) {
+          techMap.set(String(t.id), t.name);
+        }
 
         // Map backend data to FlowchartState and hydrate context
         const hydratedState: FlowchartState = {
           flowchartId: data.id,
           header: {
-            projectId: String(data.id),
-            plantCode: '',
-            plantName: '',
-            region: '',
-            customer: '',
-            partNumber: '',
-            partName: data.title,
-            diagramStatus: (data.status?.toLowerCase() as 'draft' | 'in_review' | 'approved') || 'draft',
+            projectId: data.flowchart_code || String(data.id),
+            plantCode: data.product?.plant_id === 1 ? 'PUEBLA' : 'PUEBLA',
+            plantName: data.product?.plant_id === 1 ? 'Puebla Plant' : 'Puebla Plant',
+            region: 'NAFTA',
+            customer: data.product?.customer_name || '',
+            partNumber: data.product?.part_number || '',
+            partName: data.title || data.product?.description || '',
+            diagramStatus: data.status ? (data.status.toLowerCase().replace(' ', '_') as 'draft' | 'in_review' | 'approved') : 'draft',
             lastModified: data.updated_at,
-            modifiedBy: '',
+            modifiedBy: 'John Owner',
+            creationDate: data.created_at ? data.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            revisionDate: data.updated_at ? data.updated_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            revision: String(data.version || 1),
+            coverPage: data.title,
+            safetyCharacteristic: data.product?.customer?.safety_characteristic || 'D',
           },
-          steps: data.steps.map((step) => ({
-            id: String(step.id),
-            sequence: step.step_number,
-            operationId: step.technology_id ? String(step.technology_id) : '',
-            operationName: '',
-            description: step.custom_description || '',
-            criticalFlag: 'none' as const,
-            symbolType: 'operation' as const,
-            notes: '',
-          })),
+          steps: data.steps.map((step) => {
+            const opId = step.technology_id ? String(step.technology_id) : '';
+            return {
+              id: String(step.id),
+              sequence: step.step_number,
+              operationId: opId,
+              operationName: opId ? (techMap.get(opId) || '') : '',
+              machineryId: step.machinery_id ?? null,
+              criticalFlag: (step.critical_flag as any) || 'none',
+              symbolType: (step.symbol_type as any) || 'operation',
+              responsibleDepartment: step.responsible_department || 'Producción',
+              description: step.custom_description || undefined,
+            };
+          }),
           isDirty: false,
           lastSaved: data.updated_at,
           isSaving: false,
@@ -129,6 +157,8 @@ export const FlowchartEditorPage: React.FC = () => {
     );
   }
 
+  const isArchived = docStatus?.toLowerCase() === 'archived';
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -136,6 +166,23 @@ export const FlowchartEditorPage: React.FC = () => {
       exit={{ opacity: 0 }}
       className="flex flex-col min-h-screen"
     >
+      {/* Archived Document Banner */}
+      {isArchived && (
+        <ArchivedBanner
+          onViewHistory={() => setIsHistoryOpen(true)}
+        />
+      )}
+
+      {/* History Drawer */}
+      {id && (
+        <DocumentHistoryDrawer
+          flowchartId={Number(id)}
+          flowchartTitle={title || `Flowchart #${id}`}
+          isOpen={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+        />
+      )}
+
       {/* Top Bar Navigation */}
       <div className="bg-steel-950/80 backdrop-blur-md border-b border-steel-800 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-4">
@@ -148,8 +195,8 @@ export const FlowchartEditorPage: React.FC = () => {
           </button>
           <div className="h-6 w-px bg-steel-800"></div>
           <div className="flex flex-col">
-            <span className="text-xs text-steel-400 uppercase font-semibold tracking-wider">ID Documento</span>
-            <span className="text-white font-mono font-medium">{id}</span>
+            <span className="text-xs text-steel-400 uppercase font-semibold tracking-wider">{t('pfmea.editor.docId', 'DOCUMENT ID')}</span>
+            <span className="font-mono font-medium">{state.header?.projectId || id}</span>
           </div>
           {title && (
             <>
@@ -159,15 +206,26 @@ export const FlowchartEditorPage: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
-           <span className="px-3 py-1 rounded-full text-xs font-medium border bg-amber-500/20 text-amber-300 border-amber-500/50">
-             En Edición
-           </span>
+          {isArchived ? (
+            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-sm flex items-center gap-1.5">
+              {t('archive.status.archived', 'ARCHIVADO')}
+            </span>
+          ) : (
+            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500 text-amber-950 border-amber-600 shadow-sm">
+              {t('pfmea.editor.inEdition', 'En Edición')}
+            </span>
+          )}
         </div>
       </div>
 
       {/* The Workspace */}
       <div className="flex-1 overflow-hidden relative">
-        <FlowchartWorkspace />
+        {/* Obsolete Watermark overlay */}
+        {isArchived && <ObsoleteWatermark />}
+        {/* Disable all interactions when archived */}
+        <div className={isArchived ? 'pointer-events-none select-none' : ''}>
+          <FlowchartWorkspace />
+        </div>
       </div>
     </motion.div>
   );

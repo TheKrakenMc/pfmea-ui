@@ -44,10 +44,12 @@ function flowchartReducer(
         sequence: (state.steps.length + 1) * 10,
         operationId: '',
         operationName: '',
+        machineryId: null,
         description: '',
         criticalFlag: 'none',
         symbolType: 'operation',
         notes: '',
+        responsibleDepartment: 'Producción',
       };
       return {
         ...state,
@@ -207,8 +209,7 @@ export function FlowchartProvider({ children }: { children: ReactNode }) {
 
   const saveLocally = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      dispatch({ type: 'MARK_SAVED', payload: { timestamp: new Date().toISOString() } });
+      localStorage.setItem(`flowchart_${state.flowchartId}`, JSON.stringify(state));
     } catch (err) {
       console.error('Failed to save to localStorage:', err);
     }

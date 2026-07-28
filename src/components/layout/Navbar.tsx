@@ -2,13 +2,14 @@
   /* Main Links */
 }
 import React, { useState, useRef, useEffect } from "react";
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
   Users,
   Box,
+  Package,
   Wrench,
   Settings,
   UserCircle,
@@ -16,16 +17,27 @@ import {
   Moon,
   Languages,
   Menu,
+  LogOut,
+  Zap,
+  MapPin,
+  Ruler,
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import Drawer from "./Drawer";
 
 export const Navbar: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
+  const isAuxiliariesActive = location.pathname.startsWith('/auxiliaries');
   const [isAuxiliariesOpen, setIsAuxiliariesOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { user, logout } = useAuth();
+  const userRole = user?.role_name?.toLowerCase() || "";
+  const isAdmin = userRole === "administrator" || userRole === "admin";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -44,7 +56,7 @@ export const Navbar: React.FC = () => {
   }, []);
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === "es" ? "en" : "es";
+    const newLang = i18n.language.startsWith("es") ? "en" : "es";
     i18n.changeLanguage(newLang);
   };
 
@@ -71,10 +83,25 @@ export const Navbar: React.FC = () => {
       icon: Wrench,
       path: "/auxiliaries/machinery",
     },
+    // {
+    //   name: t("navbar.auxiliaries.operations"),
+    //   icon: Settings,
+    //   path: "/auxiliaries/operations",
+    // },
     {
-      name: t("navbar.auxiliaries.operations"),
-      icon: Settings,
-      path: "/auxiliaries/operations",
+      name: t("navbar.auxiliaries.technologies"),
+      icon: Zap,
+      path: "/auxiliaries/technologies",
+    },
+    {
+      name: t("navbar.auxiliaries.locations"),
+      icon: MapPin,
+      path: "/auxiliaries/locations",
+    },
+    {
+      name: t("navbar.auxiliaries.measurementUnits", "Unidades de Medida"),
+      icon: Ruler,
+      path: "/auxiliaries/measurement-units",
     },
   ];
 
@@ -89,18 +116,18 @@ export const Navbar: React.FC = () => {
               to="/"
               className="flex items-center gap-2 flex-shrink-0 focus-ring"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-forge-500 to-forge-700 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                <span className="text-white font-bold text-lg tracking-wider">
-                  A
-                </span>
-              </div>
               <span className="text-steel-100 font-bold text-xl tracking-widest uppercase hidden sm:block">
-                APG
+                APG DMS
               </span>
             </Link>
 
             {/* Main Links */}
-            <div className="hidden lg:flex items-center space-x-2">
+            <div className="hidden xl:flex items-center space-x-2">
+              <NavLink to="/products" className={navLinkClasses}>
+                <Package className="w-4 h-4 mr-1.5 inline-block" />
+                {t("navbar.products")}
+              </NavLink>
+
               <NavLink to="/flowcharts" className={navLinkClasses}>
                 {t("navbar.flowchart")}
               </NavLink>
@@ -114,9 +141,11 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => setIsAuxiliariesOpen(!isAuxiliariesOpen)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-industrial text-sm font-medium focus-ring ${
-                    isAuxiliariesOpen
-                      ? "bg-steel-800 text-steel-100"
-                      : "text-steel-300 hover:text-steel-100 hover:bg-steel-800/50"
+                    isAuxiliariesActive
+                      ? "bg-steel-800 text-forge-400"
+                      : isAuxiliariesOpen
+                        ? "bg-steel-800 text-steel-100"
+                        : "text-steel-300 hover:text-steel-100 hover:bg-steel-800"
                   }`}
                   aria-expanded={isAuxiliariesOpen}
                   aria-haspopup="true"
@@ -134,36 +163,43 @@ export const Navbar: React.FC = () => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="absolute top-full mt-2 w-56 rounded-lg glass-card border border-steel-700 shadow-xl overflow-hidden py-1"
+                      className="absolute top-full mt-2 w-56 rounded-lg bg-steel-950 border border-steel-700 shadow-xl overflow-hidden py-1"
                     >
                       {auxiliariesMenu.map((item) => {
                         const Icon = item.icon;
                         return (
-                          <Link
+                          <NavLink
                             key={item.path}
                             to={item.path}
                             onClick={() => setIsAuxiliariesOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-steel-200 hover:bg-steel-800 hover:text-steel-100 transition-colors"
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                                isActive
+                                  ? "bg-steel-800/80 text-forge-400 font-medium"
+                                  : "text-steel-200 hover:bg-steel-800 hover:text-steel-100"
+                              }`
+                            }
                           >
-                            <Icon className="w-4 h-4 text-steel-400" />
-                            {item.name}
-                          </Link>
+                            {({ isActive }) => (
+                              <>
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-forge-400' : 'text-steel-400'}`} />
+                                {item.name}
+                              </>
+                            )}
+                          </NavLink>
                         );
                       })}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-              <button
-                onClick={() => setIsDrawerOpen(true)}
-                className="md:hidden flex items-center p-2 rounded-md text-steel-300 hover:text-steel-100 hover:bg-steel-800 transition-colors focus-ring"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <Drawer
-                isOpen={isDrawerOpen}
-                onClose={() => setIsDrawerOpen(false)}
-              />
+
+              {isAdmin && (
+                <NavLink to="/admin/users" className={navLinkClasses}>
+                  <Users className="w-4 h-4 mr-1.5 inline-block" />
+                  {t("navbar.users", "Usuarios")}
+                </NavLink>
+              )}
             </div>
           </div>
 
@@ -194,22 +230,43 @@ export const Navbar: React.FC = () => {
               className="flex items-center gap-2 rounded-xl border border-steel-700 bg-steel-800/60 px-3.5 py-2 text-xs font-medium text-steel-300 transition-industrial hover:border-forge-500/30 hover:text-forge-400 cursor-pointer"
             >
               <Languages size={14} />
-              <span>{i18n.language === "es" ? "ES" : "EN"}</span>
+              <span>{i18n.language.startsWith("es") ? "ES" : "EN"}</span>
             </motion.button>
 
             <div className="h-6 w-px bg-steel-700 hidden sm:block"></div>
 
-            <div className="flex items-center gap-3 cursor-pointer group focus-ring p-1 rounded-md">
+            <div className="flex items-center gap-3 p-1 rounded-md">
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-steel-100 group-hover:text-forge-400 transition-colors">
-                  John Doe
+                <p className="text-sm font-medium text-steel-100">
+                  {user?.full_name || "Usuario"}
                 </p>
-                <p className="text-xs text-steel-400">Process Engineer</p>
+                <p className="text-xs text-steel-400">
+                  {user?.department ? `${user.department} | ` : ''}{user?.role_name || "Invitado"}
+                </p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-steel-800 border border-steel-600 flex items-center justify-center text-steel-300 group-hover:border-forge-500 group-hover:text-forge-400 transition-colors">
+              <div className="w-9 h-9 rounded-full bg-steel-800 border border-steel-600 flex items-center justify-center text-steel-300">
                 <UserCircle className="w-6 h-6" />
               </div>
+              <button
+                onClick={logout}
+                className="p-2 rounded-md text-steel-400 hover:text-alert-red hover:bg-steel-800 transition-colors focus-ring cursor-pointer"
+                title="Cerrar Sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
+
+            {/* Mobile/Tablet Menu Toggle */}
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="xl:hidden flex items-center p-2 rounded-md text-steel-300 hover:text-steel-100 hover:bg-steel-800 transition-colors focus-ring"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <Drawer
+              isOpen={isDrawerOpen}
+              onClose={() => setIsDrawerOpen(false)}
+            />
           </div>
         </div>
       </div>

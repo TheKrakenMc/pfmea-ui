@@ -1,21 +1,16 @@
 // ─────────────────────────────────────────────────────────────
-//  useAutoSave — Debounced local + remote persistence hook
-//  Automatically saves state to localStorage after 2s idle,
-//  and to the backend via the flowchartService (debounced 2s).
+//  useAutoSave — Local persistence hook
+//  Automatically saves state to localStorage after 2s idle.
+//  Remote persistence is now handled manually.
 // ─────────────────────────────────────────────────────────────
 
 import { useEffect, useRef } from 'react';
 import { useFlowchart } from './useFlowchart';
-import {
-  saveFlowchartSteps,
-  cancelPendingSave,
-  type FlowchartStepPayload,
-} from '../services/flowchartService';
 
 const AUTOSAVE_DELAY_MS = 2000;
 
 export function useAutoSave() {
-  const { state, dispatch, saveLocally, flowchartId } = useFlowchart();
+  const { state, saveLocally } = useFlowchart();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Local save (localStorage) ─────────────────────────────
@@ -38,37 +33,6 @@ export function useAutoSave() {
       }
     };
   }, [state.isDirty, state.steps, state.header, saveLocally]);
-
-  // ─── Remote save (backend API) ─────────────────────────────
-  useEffect(() => {
-    if (!state.isDirty || flowchartId === null) return;
-
-    // Map local steps to the backend payload format
-    const stepsPayload: FlowchartStepPayload[] = state.steps.map((step, index) => ({
-      step_number: (index + 1) * 10,
-      custom_description: step.description || step.operationName || null,
-      technology_id: null, // Will be mapped when technology catalog is wired
-    }));
-
-    dispatch({ type: 'SET_SAVING', payload: { isSaving: true } });
-
-    saveFlowchartSteps(flowchartId, stepsPayload)
-      .then(() => {
-        dispatch({
-          type: 'MARK_SAVED',
-          payload: { timestamp: new Date().toISOString() },
-        });
-      })
-      .catch((err) => {
-        // 429 handled by interceptor toast — just reset saving state
-        console.error('Remote save failed:', err);
-        dispatch({ type: 'SET_SAVING', payload: { isSaving: false } });
-      });
-
-    return () => {
-      cancelPendingSave();
-    };
-  }, [state.isDirty, state.steps, flowchartId, dispatch]);
 
   return {
     isDirty: state.isDirty,

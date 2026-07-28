@@ -1,0 +1,51 @@
+import type { WorksheetRow } from './pfmeaService';
+
+export const mockWorksheetRows: WorksheetRow[] = [
+  {
+    id: 1,
+    pfmea_id: 101,
+    flowchart_step_id: 10,
+    process_item_name: "Sistema de Transmisión",
+    station_operation: "Op 10 - Ensamblaje de Eje Principal",
+    work_element_process: "Operador",
+    operation_type: "Operation",
+    function_step: "",
+    failure_mode: "",
+    failure_effect: "",
+    severity: undefined,
+    failure_cause: "",
+    occurrence: undefined,
+    prevention_controls: "",
+    detection_controls: "",
+    detection: undefined,
+    action_priority: "",
+    optimization_prevention_action: "",
+    optimization_detection_action: "",
+    responsible_person_id: undefined,
+    target_completion_date: "",
+    action_status: "Open"
+  },
+  {
+    id: 2,
+    pfmea_id: 101,
+    flowchart_step_id: 11,
+    process_item_name: "Sistema de Transmisión",
+    station_operation: "Op 20 - Inserción de Rodamientos",
+    work_element_process: "Máquina CNC",
+    operation_type: "Operation",
+    function_step: "Asegurar rotación sin fricción",
+    failure_mode: "Rodamiento insertado al revés",
+    failure_effect: "Bloqueo del eje, falla prematura",
+    severity: 8,
+    failure_cause: "Operador coloca pieza invertida",
+    occurrence: 4,
+    prevention_controls: "Guía física (Poka-Yoke)",
+    detection_controls: "Inspección visual",
+    detection: 3,
+    action_priority: "M",
+    optimization_prevention_action: "Instalar sensor de visión",
+    optimization_detection_action: "Automatizar escaneo",
+    target_completion_date: "2026-07-15",
+    action_status: "In Progress"
+  }
+];

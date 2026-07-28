@@ -32,7 +32,7 @@ export function DeleteConfirmModal({
     >
       {/* Backdrop */}
       <motion.div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-steel-900/60 backdrop-blur-md"
         onClick={onCancel}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -41,7 +41,7 @@ export function DeleteConfirmModal({
 
       {/* Card */}
       <motion.div
-        className="glass-card relative z-10 w-full max-w-md overflow-hidden rounded-2xl p-6 shadow-2xl"
+        className="glass-card bg-steel-950/80 relative z-10 w-full max-w-md overflow-hidden rounded-2xl p-6 shadow-2xl"
         initial={{ scale: 0.85, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.85, opacity: 0, y: 20 }}

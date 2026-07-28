@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { GitBranch, ShieldCheck, Database, ArrowRight } from 'lucide-react';
+import { GitBranch, ShieldCheck, Database, ArrowRight, Package } from 'lucide-react';
 
 export const WelcomePage: React.FC = () => {
   const { t } = useTranslation();
@@ -30,9 +30,9 @@ export const WelcomePage: React.FC = () => {
       title: t('welcome.flowchart.title'),
       description: t('welcome.flowchart.description'),
       path: '/flowcharts',
-      color: 'from-blue-500 to-cyan-400',
-      shadowColor: 'group-hover:shadow-blue-500/20',
-      borderColor: 'group-hover:border-blue-500/50',
+      color: 'from-forge-500 to-forge-400',
+      shadowColor: 'group-hover:shadow-forge-500/20',
+      borderColor: 'group-hover:border-forge-500/50',
     },
     {
       id: 'pfmea',
@@ -40,9 +40,19 @@ export const WelcomePage: React.FC = () => {
       title: t('welcome.pfmea.title'),
       description: t('welcome.pfmea.description'),
       path: '/pfmea',
-      color: 'from-emerald-500 to-teal-400',
-      shadowColor: 'group-hover:shadow-emerald-500/20',
-      borderColor: 'group-hover:border-emerald-500/50',
+      color: 'from-forge-600 to-forge-500',
+      shadowColor: 'group-hover:shadow-forge-600/20',
+      borderColor: 'group-hover:border-forge-600/50',
+    },
+    {
+      id: 'products',
+      icon: Package,
+      title: t('navbar.products'), // Using navbar key or products.title
+      description: t('products.subtitle'),
+      path: '/products',
+      color: 'from-forge-700 to-forge-600',
+      shadowColor: 'group-hover:shadow-forge-700/20',
+      borderColor: 'group-hover:border-forge-700/50',
     },
     {
       id: 'auxiliaries',
@@ -50,21 +60,21 @@ export const WelcomePage: React.FC = () => {
       title: t('welcome.auxiliaries.title'),
       description: t('welcome.auxiliaries.description'),
       path: '/auxiliaries/customers',
-      color: 'from-violet-500 to-purple-400',
-      shadowColor: 'group-hover:shadow-violet-500/20',
-      borderColor: 'group-hover:border-violet-500/50',
+      color: 'from-forge-400 to-forge-300',
+      shadowColor: 'group-hover:shadow-forge-400/20',
+      borderColor: 'group-hover:border-forge-400/50',
     },
   ];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-steel-950 overflow-hidden relative w-full h-full min-h-[calc(100vh-64px)]">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent overflow-hidden relative w-full h-full min-h-[calc(100vh-64px)]">
       
       {/* Background Ambient Glows */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-forge-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-forge-400/10 rounded-full blur-[120px] pointer-events-none" />
 
       <motion.div 
-        className="w-full max-w-6xl z-10 px-4"
+        className="w-full max-w-7xl z-10 px-4"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -76,16 +86,16 @@ export const WelcomePage: React.FC = () => {
               Workspace Environment
             </span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white via-steel-200 to-steel-500 mb-6 tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-forge-300 via-forge-500 to-forge-700 mb-6 tracking-tight pb-2">
             {t('welcome.title')}
           </h1>
-          <p className="text-lg md:text-2xl text-steel-400 font-light max-w-3xl mx-auto leading-relaxed">
-            {t('welcome.subtitle')}
+          <p className="text-sm md:text-base text-steel-500 dark:text-steel-500 max-w-4xl mx-auto mt-6 leading-relaxed font-medium">
+            {t('welcome.vision')}
           </p>
         </motion.div>
 
         {/* Module Cards */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {modules.map((mod) => (
             <motion.div
               key={mod.id}
@@ -101,15 +111,15 @@ export const WelcomePage: React.FC = () => {
                 <mod.icon className="w-7 h-7 text-white drop-shadow-md" />
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-4 tracking-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-steel-300 transition-all">
+              <h2 className="text-2xl font-bold mb-4 tracking-tight text-steel-100 dark:text-white group-hover:text-forge-600 dark:group-hover:text-forge-400 transition-colors">
                 {mod.title}
               </h2>
               
-              <p className="text-steel-400 leading-relaxed flex-grow">
+              <p className="text-steel-400 dark:text-steel-600 leading-relaxed flex-grow">
                 {mod.description}
               </p>
               
-              <div className="flex items-center text-sm font-semibold text-steel-500 group-hover:text-white transition-colors mt-8 pt-6 border-t border-steel-800/50">
+              <div className="flex items-center text-sm font-semibold text-steel-500 transition-colors mt-8 pt-6 border-t border-steel-800/50">
                 {t('welcome.getStarted')}
                 <ArrowRight className="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" />
               </div>

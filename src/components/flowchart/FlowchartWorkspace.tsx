@@ -16,7 +16,7 @@ export function FlowchartWorkspace() {
   return (
     <div className="bg-grid-pattern relative flex min-h-screen flex-col">
       {/* ─── Main Content ───────────────────────────── */}
-      <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-6 py-6 pb-28">
+      <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-6 py-6 pb-32">
         
         {/* Discreet Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-steel-500 dark:text-steel-300">

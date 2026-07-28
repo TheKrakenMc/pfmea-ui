@@ -6,19 +6,35 @@
 // ─────────────────────────────────────────────────────────────
 
 /** Status lifecycle of a flowchart diagram */
-export type DiagramStatus = 'draft' | 'in_review' | 'approved';
+export type DiagramStatus = 'draft' | 'in_review' | 'approved' | 'archived';
 
 /** Critical characteristic classification per AIAG/VDA */
 export type CriticalFlag = 'none' | 'CC' | 'SC';
 
-/** ISO process symbol types for flowchart visualization */
+/** ISO process symbol types for flowchart visualization (Industrial Standard) */
 export type SymbolType =
   | 'operation'
   | 'inspection'
   | 'transport'
   | 'storage'
-  | 'delay';
+  | 'delay'
+  | 'auto_control'
+  | 'pokayoke';
 
+export interface Department {
+  id: number;
+  name: string; // ej. Producción, Calidad, Logística, Mantenimiento
+  code: string; // ej. PROD, QA, LOG, MNT
+  isActive: boolean;
+}
+
+export interface Machinery {
+  id: number;
+  machineryName: string; // ej. Inyectora 500T, Horno de Curado, Celda Robotizada
+  machineryCode: string; // Número de activo interno ej. INJ-04
+  plantId: number;       // Vinculación geográfica
+  isActive: boolean;
+}
 // ─── Project-Level Metadata ──────────────────────────────────
 
 /**
@@ -37,6 +53,12 @@ export interface FlowchartHeader {
   diagramStatus: DiagramStatus;
   lastModified: string;   // ISO 8601
   modifiedBy: string;
+  creationDate?: string;
+  revisionDate?: string;
+  revision?: string;
+  coverPage?: string;
+  safetyCharacteristic?: string;
+  confidentialityLevel?: string;
 }
 
 // ─── Process Step Row ────────────────────────────────────────
@@ -50,10 +72,13 @@ export interface FlowchartStep {
   sequence: number;           // Multiples of 10 (10, 20, 30…)
   operationId: string;        // FK → PlantOperation.id
   operationName: string;      // Denormalized for display
-  description: string;
   criticalFlag: CriticalFlag;
   symbolType: SymbolType;
-  notes: string;
+  departmentId?: number;      // FK → Department.id
+  machineryId?: number | null; // FK → Machinery.id
+  isCritical?: boolean;
+  responsibleDepartment: string;
+  description?: string;
 }
 
 // ─── Catalog / Reference Data ────────────────────────────────
@@ -87,8 +112,8 @@ export interface FlowchartState {
 // ─── Reducer Actions ─────────────────────────────────────────
 
 export type FlowchartAction =
-  | { type: 'ADD_STEP' }
-  | { type: 'UPDATE_STEP'; payload: { id: string; field: keyof FlowchartStep; value: string | number | CriticalFlag | SymbolType } }
+  | { type: 'ADD_STEP'; payload?: FlowchartStep }
+  | { type: 'UPDATE_STEP'; payload: { id: string; field: keyof FlowchartStep; value: any } }
   | { type: 'DELETE_STEP'; payload: { id: string } }
   | { type: 'REORDER_STEPS'; payload: { sourceIndex: number; destinationIndex: number } }
   | { type: 'DUPLICATE_STEP'; payload: { id: string } }
