@@ -73,9 +73,11 @@ const resources = {
 
       // ─── App ────────────────────────────────────
       app: {
-        title: 'PFMEA — VDA & AIAG',
+        title: 'APG DMS - Document Management System',
         subtitle: 'Workspace de Proceso',
         breadcrumb: 'Inicio / Proyectos / Diagrama de Flujo',
+        documentTitle: 'APG DMS — Document Management System',
+        documentDescription: 'APG DMS — Document Management System para el control del ciclo de vida del producto.',
       },
 
       // ─── Welcome ────────────────────────────────
@@ -1590,9 +1592,11 @@ const resources = {
 
       // ─── App ────────────────────────────────────
       app: {
-        title: 'PFMEA',
+        title: 'APG DMS - Document Management System',
         subtitle: 'Process Workspace',
         breadcrumb: 'Home / Projects / Flowchart',
+        documentTitle: 'APG DMS - Document Management System',
+        documentDescription: 'APG DMS - Document Management System for product lifecycle control.',
       },
 
       // ─── Welcome ────────────────────────────────

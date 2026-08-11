@@ -59,7 +59,7 @@ export const FlowchartRow: React.FC<FlowchartRowProps> = ({
                 className="appearance-none bg-steel-950 border border-steel-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all w-full"
                 data-testid={`select-symbol-${step.id}`}
               >
-                {Object.values(SymbolType).map((type) => (
+                {['operation', 'inspection', 'transport', 'storage', 'delay', 'auto_control', 'pokayoke'].map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
