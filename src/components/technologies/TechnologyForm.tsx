@@ -16,7 +16,7 @@ import type { Technology } from '../../types/technology.types';
 interface TechnologyFormProps {
   tech: Technology | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
   isOpen?: boolean;
 }
 
@@ -71,7 +71,7 @@ const TechnologyForm: React.FC<TechnologyFormProps> = ({ tech, onClose, onSucces
       } else {
         await createMutation.mutateAsync(data);
       }
-      onSuccess();
+      onSuccess?.();
     } catch (err) {
       console.error('Error submitting technology form:', err);
     }

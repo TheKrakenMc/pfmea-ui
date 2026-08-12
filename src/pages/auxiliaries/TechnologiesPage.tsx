@@ -152,6 +152,7 @@ const TechnologiesPage: React.FC = () => {
         <TechnologyForm
           tech={editingTech as Technology}
           onClose={() => setEditingTech(null)}
+          onSuccess={() => setEditingTech(null)}
         />
       )}
 
