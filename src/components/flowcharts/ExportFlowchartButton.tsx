@@ -55,6 +55,7 @@ function resolveLocation(
   step: FlowchartStep,
   machineryMap: Map<number, Machinery>,
   locationMap: Map<number, ManufacturingLocation>,
+  t: (key: string, defaultValue?: string | object) => string
 ): string {
   // If the step has an assigned machinery with a location_id, resolve from locationMap
   if (step.machineryId) {
@@ -67,13 +68,13 @@ function resolveLocation(
   // Fallback based on symbol type
   switch (step.symbolType) {
     case 'storage':
-      return 'Almacén de Materia Prima';
+      return t('export.flowchart.locations.rawMaterialWarehouse', 'Almacén de Materia Prima');
     case 'transport':
-      return 'Área de Traslado';
+      return t('export.flowchart.locations.transferArea', 'Área de Traslado');
     case 'operation':
-      return 'NAVE 1';
+      return t('export.flowchart.locations.nave1', 'NAVE 1');
     case 'inspection':
-      return 'Área de Inspección';
+      return t('export.flowchart.locations.inspectionArea', 'Área de Inspección');
     default:
       return '';
   }
@@ -84,6 +85,7 @@ function resolveLocation(
 function resolveMachinery(
   step: FlowchartStep,
   machineryMap: Map<number, Machinery>,
+  t: (key: string, defaultValue?: string | object) => string
 ): string {
   if (step.machineryId) {
     const machine = machineryMap.get(step.machineryId);
@@ -91,7 +93,7 @@ function resolveMachinery(
       return `${machine.machinery_name} (${machine.machinery_code})`;
     }
   }
-  return 'NO APLICA';
+  return t('export.flowchart.machinery.notApplicable', 'NO APLICA');
 }
 
 // ─── Build signatures from real users ────────────────────────
@@ -99,6 +101,7 @@ function resolveMachinery(
 function buildSignatures(
   users: UserRead[],
   currentUserName: string | null,
+  t: (key: string, defaultValue?: string | object) => string
 ): FlowchartPdfSignature[] {
   // "Elaboró" → current logged-in user (the one exporting)
   const elaboroName = currentUserName || 'N/A';
@@ -116,45 +119,45 @@ function buildSignatures(
     (u) => u.full_name === currentUserName
   );
   const elaboroTitle = currentInList?.role_name
-    ? mapRoleToTitle(currentInList.role_name)
-    : 'Ingeniero de Procesos';
+    ? mapRoleToTitle(currentInList.role_name, t)
+    : t('export.flowchart.roles.processEngineer', 'Ingeniero de Procesos');
 
   const aproboUser = approvers[0];
   const revisoUser = approvers.length > 1 ? approvers[1] : approvers[0];
 
   return [
     {
-      role: 'Elaboró',
+      role: t('export.flowchart.signatures.preparedBy', 'Elaboró'),
       name: elaboroName,
       title: elaboroTitle,
     },
     {
-      role: 'Aprobó',
+      role: t('export.flowchart.signatures.approvedBy', 'Aprobó'),
       name: aproboUser?.full_name || 'N/A',
-      title: aproboUser ? mapRoleToTitle(aproboUser.role_name || '') : 'Coordinador de Ingeniería',
+      title: aproboUser ? mapRoleToTitle(aproboUser.role_name || '', t) : t('export.flowchart.roles.engineeringCoordinator', 'Coordinador de Ingeniería'),
     },
     {
-      role: 'Revisó',
+      role: t('export.flowchart.signatures.reviewedBy', 'Revisó'),
       name: revisoUser?.full_name || 'N/A',
-      title: revisoUser ? mapRoleToTitle(revisoUser.role_name || '') : 'Coordinador de Ingeniería',
+      title: revisoUser ? mapRoleToTitle(revisoUser.role_name || '', t) : t('export.flowchart.roles.engineeringCoordinator', 'Coordinador de Ingeniería'),
     },
   ];
 }
 
 /** Maps a system role_name to a human-readable job title for the PDF */
-function mapRoleToTitle(roleName: string): string {
+function mapRoleToTitle(roleName: string, t: (key: string, defaultValue?: string | object) => string): string {
   switch (roleName.toLowerCase()) {
     case 'administrator':
     case 'admin':
-      return 'Coordinador de Ingeniería';
+      return t('export.flowchart.roles.engineeringCoordinator', 'Coordinador de Ingeniería');
     case 'pfmea owner':
-      return 'Ingeniero de Procesos';
+      return t('export.flowchart.roles.processEngineer', 'Ingeniero de Procesos');
     case 'team member':
-      return 'Ingeniero de Procesos';
+      return t('export.flowchart.roles.processEngineer', 'Ingeniero de Procesos');
     case 'viewer':
-      return 'Analista de Calidad';
+      return t('export.flowchart.roles.qualityAnalyst', 'Analista de Calidad');
     default:
-      return 'Ingeniero de Procesos';
+      return t('export.flowchart.roles.processEngineer', 'Ingeniero de Procesos');
   }
 }
 
@@ -176,6 +179,7 @@ function buildPdfData(
   machineryMap: Map<number, Machinery>,
   locationMap: Map<number, ManufacturingLocation>,
   signatures: FlowchartPdfSignature[],
+  t: (key: string, defaultValue?: string | object) => string
 ): FlowchartPdfData {
   // Pad the ID to 3 digits
   const rawId = header.projectId ? String(header.projectId) : '1';
@@ -183,15 +187,17 @@ function buildPdfData(
 
   // Header
   const pdfHeader = {
-    partNumber: header.coverPage ? `* VER PORTADA "${header.partNumber}" **` : header.partNumber,
-    customer: header.customer || 'AUDI de México, S.A. de C.V.',
+    partNumber: header.coverPage ? t('export.flowchart.header.seeCoverPage', { defaultValue: `* VER PORTADA "${header.partNumber}" **`, partNumber: header.partNumber }) : header.partNumber,
+    customer: header.customer || t('export.flowchart.header.defaultCustomer', 'AUDI de México, S.A. de C.V.'),
     description: header.partName || '',
     date: header.lastModified
       ? new Date(header.lastModified).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0],
-    documentNumber: paddedId,
+    // Use the Cover Code / Doc ID field from the header form as the document
+    // identifier in the PDF. Fall back to the numeric project ID if empty.
+    documentNumber: header.coverPage?.trim() || paddedId,
     engineeringLevel: header.coverPage
-      ? `* VER PORTADA "${header.partNumber}" **`
+      ? t('export.flowchart.header.seeCoverPage', { defaultValue: `* VER PORTADA "${header.partNumber}" **`, partNumber: header.partNumber })
       : header.partNumber,
     revision: header.revision || '1',
     safetyCharacteristic: header.safetyCharacteristic,
@@ -211,14 +217,14 @@ function buildPdfData(
 
     return {
       stepNumber: step.sequence,
-      description: step.operationName || `Paso ${step.sequence}`,
-      location: resolveLocation(step, machineryMap, locationMap),
+      description: step.operationName || t('export.flowchart.rows.defaultStepDescription', { defaultValue: `Paso ${step.sequence}`, sequence: step.sequence }),
+      location: resolveLocation(step, machineryMap, locationMap, t),
       hic: (step.criticalFlag === 'CC' || (step.criticalFlag === '' && step.isCritical))
         ? (header.safetyCharacteristic || 'CC')
         : (step.criticalFlag === 'SC' ? '@' : ''),
       symbols,
-      norma: 'No Aplica',
-      maquinaria: resolveMachinery(step, machineryMap),
+      norma: t('export.flowchart.rows.defaultNorma', 'No Aplica'),
+      maquinaria: resolveMachinery(step, machineryMap, t),
     };
   });
 
@@ -259,7 +265,7 @@ function buildPdfData(
     rows: pdfRows,
     summary: pdfSummary,
     signatures,
-    footerRevision: `Rev.: ${pdfHeader.revision.padStart(2, '0')}`,
+    footerRevision: t('export.flowchart.footer.revision', { defaultValue: `Rev.: ${pdfHeader.revision.padStart(2, '0')}`, revision: pdfHeader.revision.padStart(2, '0') }),
     printDate: formatDate(now),
     revisionDate: header.lastModified
       ? formatDate(new Date(header.lastModified))
@@ -322,7 +328,7 @@ export const ExportFlowchartButton: React.FC<ExportFlowchartButtonProps> = ({
       }
 
       // ─── 2. Build signatures from real users ───────────────
-      const signatures = buildSignatures(usersList, user?.full_name || null);
+      const signatures = buildSignatures(usersList, user?.full_name || null, t);
 
       // ─── 3. Build the PDF data ─────────────────────────────
       const pdfData = buildPdfData(
@@ -331,6 +337,7 @@ export const ExportFlowchartButton: React.FC<ExportFlowchartButtonProps> = ({
         machineryMap,
         locationMap,
         signatures,
+        t
       );
 
       // ─── 4. Invoke jsPDF Generator ─────────────────────────────
@@ -366,14 +373,14 @@ export const ExportFlowchartButton: React.FC<ExportFlowchartButtonProps> = ({
         className ||
         'group flex items-center gap-2.5 rounded-2xl border border-steel-600 bg-steel-800/90 px-5 py-3 text-sm font-medium text-steel-200 shadow-xl backdrop-blur-md transition-all hover:border-indigo-500/40 hover:text-indigo-400 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer'
       }
-      title="Exportar Diagrama de Flujo como PDF (FIN-05)"
+      title={t('export.flowchart.buttonTitle', 'Exportar Diagrama de Flujo como PDF (FIN-05)')}
     >
       {isExporting ? (
         <Loader2 size={18} className="animate-spin" />
       ) : (
         <FileDown size={18} />
       )}
-      <span>{isExporting ? t('export.flowchart.generating') || 'Generando PDF...' : t('export.flowchart.button') || 'Exportar PDF'}</span>
+      <span>{isExporting ? t('export.flowchart.generating', 'Generando PDF...') : t('export.flowchart.button', 'Exportar PDF')}</span>
     </button>
   );
 };

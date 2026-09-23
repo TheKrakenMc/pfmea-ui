@@ -25,8 +25,8 @@ const resources = {
         customer: 'Cliente',
         status: 'Estado',
         search: 'Buscar...',
-        created: 'Creado:',
-        modified: 'Modificado:',
+        created: 'Creado',
+        modified: 'Modificado',
         allPlants: 'Todas las plantas',
         allLocations: 'Todas las ubicaciones',
       },
@@ -326,6 +326,90 @@ const resources = {
           locations: 'Ubicaciones',
           measurementUnits: 'Unidades de Medida',
         },
+      },
+      // ─── Export Flowchart PDF ────────────────────
+      export: {
+        flowchart: {
+          title: 'DIAGRAMA DE PROCESO DE FLUJO',
+          header: {
+            partNumber: 'Número de parte',
+            customer: 'Cliente',
+            description: 'Descripción',
+            date: 'Fecha',
+            engineeringLevel: 'Nivel de Ingeniería',
+            revision: 'Revisión',
+            seeCoverPage: '* VER PORTADA "{{partNumber}}" **',
+            defaultCustomer: 'AUDI de México, S.A. de C.V.'
+          },
+          columns: {
+            no: 'No.',
+            description: 'Descripción',
+            location: 'Ubicaciones',
+            hic: 'HIC',
+            quality: 'Calidad',
+            production: 'Producción',
+            logistics: 'Logística',
+            materials: 'Materiales',
+            others: 'Otros',
+            norm: 'Norma',
+            machinery: 'Maquinaria'
+          },
+          summary: {
+            storage: 'Almacenamiento',
+            autoControl: 'Auto Control',
+            delay: 'Demora',
+            inspection: 'Inspección',
+            operation: 'Operación',
+            pokayoke: 'Pokayoke',
+            transport: 'Transporte',
+            title: 'Resumen de Flujo de Proceso',
+            total: 'TOTAL'
+          },
+          seal: {
+            quality: 'Calidad'
+          },
+          notes: {
+            deviationLine1: 'Nota: Si existe una desviación al flujo de proceso deberá solicitar',
+            deviationLine2: 'desviación al departamento de ingeniería, para su aprobación y/o evaluación.',
+            symbology: 'Nota: Para utilizar simbología especial, ver procedimiento PAC-06'
+          },
+          signatures: {
+            prepared: 'Elaboró',
+            approved: 'Aprobó',
+            reviewed: 'Revisó',
+            preparedBy: 'Elaboró',
+            approvedBy: 'Aprobó',
+            reviewedBy: 'Revisó'
+          },
+          roles: {
+            processEngineer: 'Ingeniero de Procesos',
+            engineeringCoord: 'Coordinador de Ingeniería',
+            engineeringCoordinator: 'Coordinador de Ingeniería',
+            qualityAnalyst: 'Analista de Calidad'
+          },
+          footer: {
+            printDate: 'Fecha de impresión:',
+            revDate: 'Fecha de Rev.:',
+            rev: 'Rev.:',
+            revision: 'Rev.: {{revision}}'
+          },
+          locations: {
+            rawMaterialWarehouse: 'Almacén de Materia Prima',
+            transferArea: 'Área de Traslado',
+            nave1: 'NAVE 1',
+            inspectionArea: 'Área de Inspección'
+          },
+          machinery: {
+            notApplicable: 'NO APLICA'
+          },
+          rows: {
+            defaultStepDescription: 'Paso {{sequence}}',
+            defaultNorma: 'No Aplica'
+          },
+          buttonTitle: 'Exportar Diagrama de Flujo como PDF (FIN-05)',
+          button: 'Exportar PDF',
+          generating: 'Generando PDF...'
+        }
       },
       pfmea: {
         dashboard: {
@@ -1192,7 +1276,7 @@ const resources = {
       // ─── Actions ───────────────────────────────
       actions: {
         add: 'Agregar',
-        save: 'Guardar Localmente',
+        save: 'Guardar',
         publish: 'Publicar Versión',
         duplicate: 'Duplicar Paso',
         delete: 'Eliminar Paso',
@@ -1424,12 +1508,12 @@ const resources = {
             machinery: 'Maquinaria',
           },
           header: {
-            partNumber: 'Número de parte:',
-            description: 'Descripción:',
-            engineeringLevel: 'Nivel de Ingeniería:',
-            customer: 'Cliente:',
-            date: 'Fecha:',
-            revision: 'Revisión:',
+            partNumber: 'Número de parte',
+            description: 'Descripción',
+            engineeringLevel: 'Nivel de Ingeniería',
+            customer: 'Cliente',
+            date: 'Fecha',
+            revision: 'Revisión',
           },
           summary: {
             storage: 'Almacenamiento',
@@ -1451,8 +1535,8 @@ const resources = {
             specialSymbols: 'Nota: Para utilizar simbología especial, ver procedimiento PAC-06',
           },
           footer: {
-            printDate: 'Fecha de impresión:',
-            revisionDate: 'Fecha de Rev.:',
+            printDate: 'Fecha de impresión',
+            revisionDate: 'Fecha de Rev.',
           },
         },
         pfmea: {
@@ -1460,17 +1544,17 @@ const resources = {
           generating: 'Generando PFMEA...',
           title: 'ANÁLISIS DE MODO Y EFECTO DE FALLA DEL PROCESO (PFMEA)',
           header: {
-            partNumber: 'Número de parte:',
-            description: 'Descripción:',
-            project: 'Proyecto:',
-            customer: 'Cliente:',
-            team: 'Equipo:',
-            responsible: 'Responsable del proceso:',
-            pfmeaNumber: 'No. AMEF:',
-            manufacturing: 'Manufactura:',
-            preparedBy: 'Preparado por:',
-            originalDate: 'Fecha original:',
-            revisionDate: 'Fecha revisión:',
+            partNumber: 'Número de parte',
+            description: 'Descripción',
+            project: 'Proyecto',
+            customer: 'Cliente',
+            team: 'Equipo',
+            responsible: 'Responsable del proceso',
+            pfmeaNumber: 'No. AMEF',
+            manufacturing: 'Manufactura',
+            preparedBy: 'Preparado por',
+            originalDate: 'Fecha original',
+            revisionDate: 'Fecha revisión',
             stages: {
               prototype: 'Prototipo',
               preLaunch: 'Pre-lanzamiento',
@@ -1518,8 +1602,8 @@ const resources = {
             reviewed: 'Revisó',
           },
           footer: {
-            printDate: 'Fecha de impresión:',
-            revisionDate: 'Fecha de Rev.:',
+            printDate: 'Fecha de impresión',
+            revisionDate: 'Fecha de Rev.',
             page: 'Página',
           },
         },
@@ -1545,8 +1629,8 @@ const resources = {
         customer: 'Customer',
         status: 'Status',
         search: 'Search...',
-        created: 'Created:',
-        modified: 'Modified:',
+        created: 'Created',
+        modified: 'Modified',
         allPlants: 'All Plants',
         allLocations: 'All Locations',
       },
@@ -2708,7 +2792,7 @@ const resources = {
 
       // ─── Actions ───────────────────────────────
       actions: {
-        save: 'Save Locally',
+        save: 'Save',
         publish: 'Publish Version',
         duplicate: 'Duplicate Step',
         delete: 'Delete Step',
@@ -2893,9 +2977,17 @@ const resources = {
       // ─── Export ─────────────────────────────────
       export: {
         flowchart: {
-          button: 'Export PDF',
-          generating: 'Generating PDF...',
           title: 'PROCESS FLOW DIAGRAM',
+          header: {
+            partNumber: 'Part number',
+            customer: 'Customer',
+            description: 'Description',
+            date: 'Date',
+            engineeringLevel: 'Engineering Level',
+            revision: 'Revision',
+            seeCoverPage: '* SEE COVER PAGE "{{partNumber}}" **',
+            defaultCustomer: 'AUDI de México, S.A. de C.V.'
+          },
           columns: {
             no: 'No.',
             description: 'Description',
@@ -2907,15 +2999,7 @@ const resources = {
             materials: 'Materials',
             others: 'Others',
             norm: 'Standard',
-            machinery: 'Machinery',
-          },
-          header: {
-            partNumber: 'Part number:',
-            description: 'Description:',
-            engineeringLevel: 'Engineering Level:',
-            customer: 'Customer:',
-            date: 'Date:',
-            revision: 'Revision:',
+            machinery: 'Machinery'
           },
           summary: {
             storage: 'Storage',
@@ -2925,38 +3009,70 @@ const resources = {
             operation: 'Operation',
             pokayoke: 'Pokayoke',
             transport: 'Transport',
-            total: 'Total',
+            title: 'Process Flow Summary',
+            total: 'TOTAL'
+          },
+          seal: {
+            quality: 'Quality'
+          },
+          notes: {
+            deviationLine1: 'Note: If there is a deviation to the process flow, a deviation request',
+            deviationLine2: 'must be submitted to the engineering department for approval and/or evaluation.',
+            symbology: 'Note: To use special symbols, see procedure PAC-06'
           },
           signatures: {
             prepared: 'Prepared by',
             approved: 'Approved by',
             reviewed: 'Reviewed by',
+            preparedBy: 'Prepared by',
+            approvedBy: 'Approved by',
+            reviewedBy: 'Reviewed by'
           },
-          notes: {
-            deviation: 'Note: If there is a deviation to the process flow, a deviation request must be submitted to the engineering department for approval and/or evaluation.',
-            specialSymbols: 'Note: To use special symbols, see procedure PAC-06',
+          roles: {
+            processEngineer: 'Process Engineer',
+            engineeringCoord: 'Engineering Coordinator',
+            engineeringCoordinator: 'Engineering Coordinator',
+            qualityAnalyst: 'Quality Analyst'
           },
           footer: {
             printDate: 'Print date:',
-            revisionDate: 'Rev. date:',
+            revDate: 'Rev. date:',
+            rev: 'Rev.:',
+            revision: 'Rev.: {{revision}}'
           },
+          locations: {
+            rawMaterialWarehouse: 'Raw Material Warehouse',
+            transferArea: 'Transfer Area',
+            nave1: 'NAVE 1',
+            inspectionArea: 'Inspection Area'
+          },
+          machinery: {
+            notApplicable: 'N/A'
+          },
+          rows: {
+            defaultStepDescription: 'Step {{sequence}}',
+            defaultNorma: 'N/A'
+          },
+          buttonTitle: 'Export Flowchart as PDF (FIN-05)',
+          button: 'Export PDF',
+          generating: 'Generating PDF...'
         },
         pfmea: {
           button: 'Export PFMEA',
           generating: 'Generating PFMEA...',
           title: 'PROCESS FAILURE MODE AND EFFECTS ANALYSIS (PFMEA)',
           header: {
-            partNumber: 'Part number:',
-            description: 'Description:',
-            project: 'Project:',
-            customer: 'Customer:',
-            team: 'Team:',
-            responsible: 'Process responsible:',
-            pfmeaNumber: 'FMEA No.:',
-            manufacturing: 'Manufacturing:',
-            preparedBy: 'Prepared by:',
-            originalDate: 'Original date:',
-            revisionDate: 'Revision date:',
+            partNumber: 'Part number',
+            description: 'Description',
+            project: 'Project',
+            customer: 'Customer',
+            team: 'Team',
+            responsible: 'Process responsible',
+            pfmeaNumber: 'FMEA No.',
+            manufacturing: 'Manufacturing',
+            preparedBy: 'Prepared by',
+            originalDate: 'Original date',
+            revisionDate: 'Revision date',
             stages: {
               prototype: 'Prototype',
               preLaunch: 'Pre-launch',
@@ -3004,8 +3120,8 @@ const resources = {
             reviewed: 'Reviewed by',
           },
           footer: {
-            printDate: 'Print date:',
-            revisionDate: 'Rev. date:',
+            printDate: 'Print date',
+            revisionDate: 'Rev. date',
             page: 'Page',
           },
         },

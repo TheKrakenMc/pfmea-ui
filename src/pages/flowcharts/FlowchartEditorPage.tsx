@@ -77,7 +77,7 @@ export const FlowchartEditorPage: React.FC = () => {
             creationDate: data.created_at ? data.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
             revisionDate: data.updated_at ? data.updated_at.split('T')[0] : new Date().toISOString().split('T')[0],
             revision: String(data.version || 1),
-            coverPage: data.title,
+            coverPage: data.flowchart_code || '',
             safetyCharacteristic: data.product?.customer?.safety_characteristic || 'D',
           },
           steps: data.steps.map((step) => {
