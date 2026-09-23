@@ -84,6 +84,7 @@ export interface FlowchartUpdatePayload {
   customer_name?: string;
   part_number?: string;
   product_description?: string | null;
+  flowchart_code?: string;
 }
 
 // ─── Service Functions ───────────────────────────────────────

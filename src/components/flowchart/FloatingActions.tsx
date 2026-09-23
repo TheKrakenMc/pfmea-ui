@@ -49,6 +49,7 @@ export function FloatingActions() {
       customer_name: state.header.customer || '',
       part_number: state.header.partNumber || '',
       product_description: state.header.partName || '',
+      flowchart_code: state.header.projectId || '',
     };
 
     dispatch({ type: 'SET_SAVING', payload: { isSaving: true } });
