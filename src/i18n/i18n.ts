@@ -1121,7 +1121,7 @@ const resources = {
 
       // ─── Header Panel ──────────────────────────
       header: {
-        title: 'Información del Proyecto',
+        title: 'Cabecera de Proyecto y Proceso',
         plantCode: 'Código de Planta',
         plantName: 'Nombre de Planta',
         region: 'Región',
@@ -1137,9 +1137,10 @@ const resources = {
 
       // ─── Status Values ─────────────────────────
       status: {
-        draft: 'Borrador',
-        in_review: 'En Revisión',
-        approved: 'Aprobado',
+        draft: 'Borrador (Draft)',
+        in_review: 'En Revisión (In Review)',
+        approved: 'Aprobado (Approved)',
+        archived: 'Archivado (Archived)',
       },
 
       // ─── Table Columns ─────────────────────────
@@ -2637,7 +2638,7 @@ const resources = {
 
       // ─── Header Panel ──────────────────────────
       header: {
-        title: 'Project Information',
+        title: 'Project and Process Header',
         plantCode: 'Plant Code',
         plantName: 'Plant Name',
         region: 'Region',
@@ -2656,6 +2657,7 @@ const resources = {
         draft: 'Draft',
         in_review: 'In Review',
         approved: 'Approved',
+        archived: 'Archived',
       },
 
       // ─── Table Columns ─────────────────────────

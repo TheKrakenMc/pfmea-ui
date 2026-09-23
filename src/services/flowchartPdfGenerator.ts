@@ -37,7 +37,14 @@ export async function generateFlowchartPdf(data: FlowchartPdfData, t: (key: stri
     safetyCharacteristic: data.header.safetyCharacteristic,
     date: data.printDate,
     revision: data.header.revision
-  }, currentY);
+  }, currentY, false, {
+    partNumber: t('export.flowchart.header.partNumber') || 'Número de parte',
+    customer: t('export.flowchart.header.customer') || 'Cliente',
+    description: t('export.flowchart.header.description') || 'Descripción',
+    date: t('export.flowchart.header.date') || 'Fecha',
+    engineeringLevel: t('export.flowchart.header.engineeringLevel') || 'Nivel de Ingeniería',
+    revision: t('export.flowchart.header.revision') || 'Revisión'
+  });
 
   // Main Table
   const tableHeaders = [
@@ -179,9 +186,9 @@ export async function generateFlowchartPdf(data: FlowchartPdfData, t: (key: stri
     startY: bottomAreaY,
     margin: { left: margin },
     tableWidth: summaryWidth,
-    head: [[{ content: 'Resumen de Flujo de Proceso', colSpan: 3, styles: { halign: 'center' } }]],
+    head: [[{ content: t('export.flowchart.summary.title') || 'Resumen de Flujo de Proceso', colSpan: 3, styles: { halign: 'center' } }]],
     body: summaryData,
-    foot: [[{ content: 'TOTAL', colSpan: 2, styles: { fontStyle: 'bold', halign: 'center' } }, { content: data.summary.total.toString(), styles: { fontStyle: 'bold', halign: 'center' } }]],
+    foot: [[{ content: t('export.flowchart.summary.total') || 'TOTAL', colSpan: 2, styles: { fontStyle: 'bold', halign: 'center' } }, { content: data.summary.total.toString(), styles: { fontStyle: 'bold', halign: 'center' } }]],
     theme: 'grid',
     styles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
     headStyles: { fillColor: [255, 255, 255] },
@@ -213,19 +220,19 @@ export async function generateFlowchartPdf(data: FlowchartPdfData, t: (key: stri
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(5);
   doc.text('100%', sealX, sealY - 1, { align: 'center', angle: -25 });
-  doc.text('Calidad', sealX, sealY + 3, { align: 'center', angle: -25 });
+  doc.text(t('export.flowchart.seal.quality') || 'Calidad', sealX, sealY + 3, { align: 'center', angle: -25 });
 
   // Notes (Right top)
   doc.setFontSize(6);
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bolditalic');
-  doc.text('Nota: Si existe una desviación al flujo de proceso deberá solicitar', 155, bottomAreaY + 4, { align: 'center' });
+  doc.text(t('export.flowchart.notes.deviationLine1') || 'Nota: Si existe una desviación al flujo de proceso deberá solicitar', 155, bottomAreaY + 4, { align: 'center' });
   doc.line(115, bottomAreaY + 5, 195, bottomAreaY + 5);
-  doc.text('desviación al departamento de ingeniería, para su aprobación y/o evaluación.', 155, bottomAreaY + 9, { align: 'center' });
+  doc.text(t('export.flowchart.notes.deviationLine2') || 'desviación al departamento de ingeniería, para su aprobación y/o evaluación.', 155, bottomAreaY + 9, { align: 'center' });
   doc.line(115, bottomAreaY + 10, 195, bottomAreaY + 10);
   
   doc.setFont('helvetica', 'italic');
-  doc.text('Nota: Para utilizar simbología especial, ver procedimiento PAC-06', 142, bottomAreaY + 18, { align: 'center' });
+  doc.text(t('export.flowchart.notes.symbology') || 'Nota: Para utilizar simbología especial, ver procedimiento PAC-06', 142, bottomAreaY + 18, { align: 'center' });
 
   // Signatures Area
   const sigY = bottomAreaY + 20;
@@ -244,29 +251,32 @@ export async function generateFlowchartPdf(data: FlowchartPdfData, t: (key: stri
   doc.setFont('helvetica', 'bold');
   
   // Headers
-  doc.text('Elaboró', sigStartX + 18, sigY + 5, { align: 'center' });
-  doc.text('Aprobó', sigStartX + 54, sigY + 5, { align: 'center' });
-  doc.text('Revisó', sigStartX + 90, sigY + 5, { align: 'center' });
+  doc.text(t('export.flowchart.signatures.prepared') || 'Elaboró', sigStartX + 18, sigY + 5, { align: 'center' });
+  doc.text(t('export.flowchart.signatures.approved') || 'Aprobó', sigStartX + 54, sigY + 5, { align: 'center' });
+  doc.text(t('export.flowchart.signatures.reviewed') || 'Revisó', sigStartX + 90, sigY + 5, { align: 'center' });
 
   // Signature lines and text
-  const elaboroName = data.signatures[0]?.name || 'Ingeniero de procesos';
-  const aproboName = data.signatures[1]?.name || 'Coordinador de Ingeniería';
-  const revisoName = data.signatures[2]?.name || 'Coordinador de Ingeniería';
+  const processEngineerText = t('export.flowchart.roles.processEngineer') || 'Ingeniero de procesos';
+  const engineeringCoordText = t('export.flowchart.roles.engineeringCoord') || 'Coordinador de Ingeniería';
+
+  const elaboroName = data.signatures[0]?.name || processEngineerText;
+  const aproboName = data.signatures[1]?.name || engineeringCoordText;
+  const revisoName = data.signatures[2]?.name || engineeringCoordText;
 
   doc.setFont('helvetica', 'normal');
   doc.text(elaboroName, sigStartX + 18, sigY + 18, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Ingeniero de procesos', sigStartX + 18, sigY + 21, { align: 'center' });
+  doc.text(processEngineerText, sigStartX + 18, sigY + 21, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.text(aproboName, sigStartX + 54, sigY + 18, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Coordinador de Ingeniería', sigStartX + 54, sigY + 21, { align: 'center' });
+  doc.text(engineeringCoordText, sigStartX + 54, sigY + 21, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.text(revisoName, sigStartX + 90, sigY + 18, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Coordinador de Ingeniería', sigStartX + 90, sigY + 21, { align: 'center' });
+  doc.text(engineeringCoordText, sigStartX + 90, sigY + 21, { align: 'center' });
 
   // Footer and Watermark
   const pageCount = (doc as any).internal.getNumberOfPages();
@@ -296,7 +306,18 @@ export async function generateFlowchartPdf(data: FlowchartPdfData, t: (key: stri
       doc.restoreGraphicsState();
     }
 
-    drawFooter(doc, data.header.revision, data.printDate, data.revisionDate, pageWidth, pageHeight, 'FIN - 05');
+    drawFooter(
+      doc, 
+      data.header.revision, 
+      data.printDate, 
+      data.revisionDate, 
+      pageWidth, 
+      pageHeight, 
+      'FIN - 05',
+      t('export.flowchart.footer.printDate') || 'Fecha de impresión:',
+      t('export.flowchart.footer.revDate') || 'Fecha de Rev.:',
+      t('export.flowchart.footer.rev') || 'Rev.:'
+    );
   }
 
   return doc.output('blob');

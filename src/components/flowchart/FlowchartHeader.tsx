@@ -72,15 +72,15 @@ export function FlowchartHeader() {
       if (role === 'PFMEA Owner' || role === 'Administrator') {
         statuses.push('in_review');
       }
-      if (role === 'Administrator') {
+      if (role === 'PFMEA Owner' || role === 'Administrator') {
         statuses.push('approved');
       }
     } else if (current === 'in_review') {
-      if (role === 'Administrator') {
+      if (role === 'PFMEA Owner' || role === 'Administrator') {
         statuses.push('approved');
       }
     } else if (current === 'approved') {
-      if (role === 'Administrator') {
+      if (role === 'PFMEA Owner' || role === 'Administrator') {
         statuses.push('archived');
       }
     }
@@ -274,9 +274,19 @@ export function FlowchartHeader() {
                       <Globe2 size={12} className="text-sky-400" />
                       {t('pfmea.header.docCode', 'Código de Portada / Doc')}
                     </label>
-                    <div className="w-full bg-steel-950/20 dark:bg-steel-950/10 border border-steel-700/30 rounded-xl px-4 py-2.5 text-sm text-steel-400 font-medium select-none cursor-not-allowed">
-                      {header.projectId || 'N/A'}
-                    </div>
+                    {(role === 'Administrator' || role === 'PFMEA Owner') ? (
+                      <input
+                        type="text"
+                        value={header.projectId || ''}
+                        onChange={(e) => handleFieldChange('projectId', e.target.value)}
+                        placeholder="N/A"
+                        className="w-full bg-steel-950/40 dark:bg-steel-950/30 border border-steel-700/50 hover:border-steel-600 focus:border-forge-500 rounded-xl px-4 py-2.5 text-sm text-steel-100 transition-all font-medium focus:outline-none focus:ring-1 focus:ring-forge-500"
+                      />
+                    ) : (
+                      <div className="w-full bg-steel-950/20 dark:bg-steel-950/10 border border-steel-700/30 rounded-xl px-4 py-2.5 text-sm text-steel-400 font-medium select-none cursor-not-allowed">
+                        {header.projectId || 'N/A'}
+                      </div>
+                    )}
                   </div>
 
                   {/* Confidencialidad */}

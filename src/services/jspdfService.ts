@@ -50,7 +50,15 @@ export function drawHeader(
     revision: string;
   },
   startY: number = 10,
-  skipGrid: boolean = false
+  skipGrid: boolean = false,
+  translations?: {
+    partNumber?: string;
+    customer?: string;
+    description?: string;
+    date?: string;
+    engineeringLevel?: string;
+    revision?: string;
+  }
 ): number {
   const margin = 10;
   let currentY = startY;
@@ -127,22 +135,22 @@ export function drawHeader(
     },
     body: [
       [
-        { content: 'Número de parte:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.partNumber || 'Número de parte') + ':', styles: { fontStyle: 'bold' } },
         { content: data.partNumber },
-        { content: 'Cliente:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.customer || 'Cliente') + ':', styles: { fontStyle: 'bold' } },
         { content: data.customer },
         { content: docNumber.replace('_FLOWCHART_', '_FLOWCHART_\n'), rowSpan: 3, styles: { halign: 'center', fontSize: 8, fontStyle: 'bold' } }
       ],
       [
-        { content: 'Descripción:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.description || 'Descripción') + ':', styles: { fontStyle: 'bold' } },
         { content: data.description },
-        { content: 'Fecha:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.date || 'Fecha') + ':', styles: { fontStyle: 'bold' } },
         { content: data.date }
       ],
       [
-        { content: 'Nivel de Ingeniería:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.engineeringLevel || 'Nivel de Ingeniería') + ':', styles: { fontStyle: 'bold' } },
         { content: data.engineeringLevel },
-        { content: 'Revisión:', styles: { fontStyle: 'bold' } },
+        { content: (translations?.revision || 'Revisión') + ':', styles: { fontStyle: 'bold' } },
         { content: data.revision }
       ]
     ],
@@ -170,7 +178,8 @@ export function drawFooter(
   pageHeight: number,
   documentCode: string = 'FIN - 05',
   printDateLabel: string = 'Fecha de impresión:',
-  revisionDateLabel: string = 'Fecha de Rev.:'
+  revisionDateLabel: string = 'Fecha de Rev.:',
+  revLabel: string = 'Rev.:'
 ) {
   const margin = 10;
   const footerY = pageHeight - 12;
@@ -179,7 +188,7 @@ export function drawFooter(
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
 
-  doc.text(`Rev.: ${revision.padStart(2, '0')}`, margin, footerY + 8);
+  doc.text(`${revLabel} ${revision.padStart(2, '0')}`, margin, footerY + 8);
   doc.text(`${printDateLabel} ${printDate}`, pageWidth / 2, footerY + 5, { align: 'center' });
   doc.text(`${revisionDateLabel} ${revisionDate}`, pageWidth / 2, footerY + 9, { align: 'center' });
   doc.text(documentCode, pageWidth - margin, footerY + 8, { align: 'right' });

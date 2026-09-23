@@ -29,7 +29,14 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
       safetyCharacteristic: data.header.customer.toLowerCase().includes('toyota') ? '▽' : (data.header.safetyCharacteristic || 'D'),
       date: data.printDate,
       revision: data.header.revision
-    }, hY, true);
+    }, hY, true, {
+      partNumber: t('export.pfmea.header.partNumber') || 'Número de parte',
+      customer: t('export.pfmea.header.customer') || 'Cliente',
+      description: t('export.pfmea.header.description') || 'Descripción',
+      date: t('export.pfmea.header.date') || 'Fecha',
+      engineeringLevel: t('export.pfmea.header.engineeringLevel') || 'Nivel de Ingeniería',
+      revision: t('export.pfmea.header.revision') || 'Revisión'
+    });
 
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
@@ -622,7 +629,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
   const pageLabel = t('export.pfmea.footer.page') || 'Página';
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    drawFooter(doc, data.header.revision, data.printDate, data.revisionDate, pageWidth, pageHeight, 'FIN-07', t('export.pfmea.footer.printDate') || 'Fecha de impresión:', t('export.pfmea.footer.revisionDate') || 'Fecha de Rev.:');
+    drawFooter(doc, data.header.revision, data.printDate, data.revisionDate, pageWidth, pageHeight, 'FIN-07', t('export.pfmea.footer.printDate') || 'Fecha de impresión:', t('export.pfmea.footer.revisionDate') || 'Fecha de Rev.:', t('export.pfmea.footer.rev') || 'Rev.:');
 
     // Page numbering: "Página n/m" placed slightly above the FIN code
     doc.setFont('helvetica', 'normal');
