@@ -1,210 +1,206 @@
 // ─────────────────────────────────────────────────────────────
-//  Flowchart PDF Generator
-//  Generates the FIN-05 process flow diagram using jsPDF + AutoTable
-//
-//  Layout contract (A4 portrait = 210 × 297 mm):
-//  ┌────────────────────────────── 297 mm ──────────────────────┐
-//  │  Header block  (drawHeader)           ≈ 10 → ~42 mm        │
-//  │  ─────────────────────────────────────────────────────────  │
-//  │  autoTable content area               margin.top  = 45 mm  │
-//  │                                       margin.bottom= 88 mm  │
-//  │  ─────────────────────────────────────────────────────────  │
-//  │  Summary + Seal + Notes + Signatures  ~209 → ~285 mm       │
-//  │  Footer bar                           ~285 → 297 mm        │
-//  └────────────────────────────────────────────────────────────┘
-//
-//  The bottom block (summary … footer) is drawn by drawPageLayout()
-//  which is called automatically on every page via the didDrawPage hook.
+//  Flowchart PDF Generator - Faithful IMS Corporate Standard
+//  Optimized Spacing, Empty Control Number & Clean Characteristics
 // ─────────────────────────────────────────────────────────────
 
 import jsPDF from 'jspdf';
-import { createDocument, drawHeader, COLORS } from './jspdfService';
-import { ImageRegistry } from './imageRegistry';
+import { createDocument } from './jspdfService';
 import type { FlowchartPdfData, FlowchartPdfRow } from '../types/flowchartExport.types';
 import type { SymbolType } from '../types/flowchart.types';
 
-// ─── Layout constants (mm, A4 portrait 210 × 297) ────────────
-
-/** Top of the bottom static block (summary / seal / notes / signatures) */
-const BOTTOM_BLOCK_Y = 209;
-
-/**
- * Height of the bottom block including the footer bar.
- * 297 - 209 = 88 mm total → leaves a 88 mm "safe" margin at the bottom
- * so autoTable never prints rows inside this block.
- */
-const BOTTOM_BLOCK_HEIGHT = 88; // mm (297 - 209)
-
-/** Vertical position where the signatures box begins (relative to page top) */
-const SIGNATURES_Y = BOTTOM_BLOCK_Y + 22;
-
-/** autoTable margin.top – must be BELOW the drawHeader output (~42 mm + 3 gap) */
-const TABLE_MARGIN_TOP = 45;
-
-/** autoTable margin.bottom – must be ABOVE the bottom block */
-const TABLE_MARGIN_BOTTOM = BOTTOM_BLOCK_HEIGHT + 2; // 90 mm
-
-// ─── Context passed to the per-page layout helper ────────────
+const MARGIN = 10;
+const TABLE_MARGIN_TOP = 42;
+const TABLE_MARGIN_BOTTOM = 25;
 
 interface PageLayoutContext {
   data: FlowchartPdfData;
-  docNumber: string;
   t: (key: string) => string;
   pageWidth: number;
   pageHeight: number;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  drawPageLayout
-//  Draws the static bottom block (summary, seal, notes,
-//  signatures) and the footer bar on the current page.
-//  Called inside the autoTable `didDrawPage` hook AND after
-//  the first-page header is rendered.
-// ─────────────────────────────────────────────────────────────
-function drawPageLayout(doc: jsPDF, ctx: PageLayoutContext): void {
-  const { data, docNumber, t, pageWidth, pageHeight } = ctx;
-  const margin = 10;
-  const bottomAreaY = BOTTOM_BLOCK_Y;
-
-  // ── Summary Table (Left) ──────────────────────────────────
-  const summaryWidth = 60;
-  const summaryData: any[][] = [
-    ['', t('export.flowchart.summary.storage') || 'Almacenamiento', data.summary.almacenamiento.toString()],
-    ['', t('export.flowchart.summary.autoControl') || 'Auto Control', data.summary.autoControl.toString()],
-    ['', t('export.flowchart.summary.delay') || 'Demora', data.summary.demora.toString()],
-    ['', t('export.flowchart.summary.inspection') || 'Inspección', data.summary.inspeccion.toString()],
-    ['', t('export.flowchart.summary.operation') || 'Operación', data.summary.operacion.toString()],
-    ['', t('export.flowchart.summary.pokayoke') || 'Pokayoke', data.summary.pokayoke.toString()],
-    ['', t('export.flowchart.summary.transport') || 'Transporte', data.summary.transporte.toString()],
-  ];
-
-  (doc as any).autoTable({
-    startY: bottomAreaY,
-    margin: { left: margin },
-    tableWidth: summaryWidth,
-    head: [
-      [{ content: t('export.flowchart.summary.title') || 'Resumen de Flujo de Proceso', colSpan: 3, styles: { halign: 'center' } }],
-    ],
-    body: summaryData,
-    foot: [
-      [
-        { content: t('export.flowchart.summary.total') || 'TOTAL', colSpan: 2, styles: { fontStyle: 'bold', halign: 'center' } },
-        { content: data.summary.total.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
-      ],
-    ],
-    theme: 'grid',
-    styles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
-    headStyles: { fillColor: [255, 255, 255] },
-    footStyles: { fillColor: [255, 255, 255] },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { halign: 'center' },
-      2: { halign: 'center', cellWidth: 10 },
-    },
-    didDrawCell: (hook: any) => {
-      if (hook.section === 'body' && hook.column.index === 0) {
-        const rowKeys: SymbolType[] = [
-          'storage', 'auto_control', 'delay',
-          'inspection', 'operation', 'pokayoke', 'transport',
-        ];
-        const sym = rowKeys[hook.row.index];
-        const base64Img = ImageRegistry.symbols[sym];
-        if (base64Img) {
-          const dim = 7.5;
-          const x = hook.cell.x + (hook.cell.width - dim) / 2;
-          const y = hook.cell.y + (hook.cell.height - dim) / 2;
-          doc.addImage(base64Img, 'PNG', x, y, dim, dim);
-        }
-      }
-    },
-  });
-
-  // ── Quality Seal ─────────────────────────────────────────
-  const sealRadius = 7.5;
-  const sealX = 90 + sealRadius;
-  const sealY = bottomAreaY + sealRadius;
-
-  doc.setFillColor(150, 180, 255);
-  doc.setDrawColor(0, 51, 153);
-  doc.circle(sealX, sealY, sealRadius, 'DF');
-  doc.setTextColor(0, 51, 153);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5);
-  doc.text('100%', sealX, sealY - 1, { align: 'center', angle: -25 });
-  doc.text(t('export.flowchart.seal.quality') || 'Calidad', sealX, sealY + 3, { align: 'center', angle: -25 });
-
-  // ── Notes ────────────────────────────────────────────────
-  doc.setFontSize(6);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'bolditalic');
-  doc.text(
-    t('export.flowchart.notes.deviationLine1') ||
-      'Nota: Si existe una desviación al flujo de proceso deberá solicitar',
-    155, bottomAreaY + 4, { align: 'center' },
-  );
-  doc.line(115, bottomAreaY + 5, 195, bottomAreaY + 5);
-  doc.text(
-    t('export.flowchart.notes.deviationLine2') ||
-      'desviación al departamento de ingeniería, para su aprobación y/o evaluación.',
-    155, bottomAreaY + 9, { align: 'center' },
-  );
-  doc.line(115, bottomAreaY + 10, 195, bottomAreaY + 10);
-
-  doc.setFont('helvetica', 'italic');
-  doc.text(
-    t('export.flowchart.notes.symbology') || 'Nota: Para utilizar simbología especial, ver procedimiento PAC-06',
-    142, bottomAreaY + 18, { align: 'center' },
-  );
-
-  // ── Signatures ───────────────────────────────────────────
-  const sigY = SIGNATURES_Y;
-  const sigTotalW = 108;
-  const sigStartX = 88;
-
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.2);
-  doc.rect(sigStartX, sigY, sigTotalW, 25);
-  doc.line(sigStartX + 36, sigY, sigStartX + 36, sigY + 25);
-  doc.line(sigStartX + 72, sigY, sigStartX + 72, sigY + 25);
-
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'bold');
-
-  const processEngineerText = t('export.flowchart.roles.processEngineer') || 'Ingeniero de procesos';
-  const engineeringCoordText = t('export.flowchart.roles.engineeringCoord') || 'Coordinador de Ingeniería';
-
-  const elaboroName = data.signatures[0]?.name || processEngineerText;
-  const aproboName = data.signatures[1]?.name || engineeringCoordText;
-  const revisoName = data.signatures[2]?.name || engineeringCoordText;
-
-  // Column headers
-  doc.text(t('export.flowchart.signatures.prepared') || 'Elaboró', sigStartX + 18, sigY + 5, { align: 'center' });
-  doc.text(t('export.flowchart.signatures.approved') || 'Aprobó', sigStartX + 54, sigY + 5, { align: 'center' });
-  doc.text(t('export.flowchart.signatures.reviewed') || 'Revisó', sigStartX + 90, sigY + 5, { align: 'center' });
-
-  // Signature names + roles
-  doc.setFont('helvetica', 'normal');
-  doc.text(elaboroName, sigStartX + 18, sigY + 18, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text(processEngineerText, sigStartX + 18, sigY + 21, { align: 'center' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(aproboName, sigStartX + 54, sigY + 18, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text(engineeringCoordText, sigStartX + 54, sigY + 21, { align: 'center' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(revisoName, sigStartX + 90, sigY + 18, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text(engineeringCoordText, sigStartX + 90, sigY + 21, { align: 'center' });
-
-  // Footer is drawn exclusively in the post-processing loop
-  // (after autoTable finishes) so the total page count is known
-  // and the text is stamped only once per page.
+function cleanPartNumber(val?: string): string {
+  if (!val) return '';
+  return val
+    .replace(/\*\s*SEE COVER PAGE\s*"?/gi, '')
+    .replace(/"?\s*\*\*/gi, '')
+    .replace(/"/g, '')
+    .trim();
 }
 
 // ─────────────────────────────────────────────────────────────
-//  generateFlowchartPdf  — public entry point
+//  drawCorporateHeader
+// ─────────────────────────────────────────────────────────────
+function drawCorporateHeader(doc: jsPDF, ctx: PageLayoutContext, startY: number = 10): number {
+  const { data, pageWidth } = ctx;
+  const width = pageWidth - MARGIN * 2;
+  const rowHeight = 6;
+  const currentY = startY;
+
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(0, 0, 0);
+
+  // Outer border box
+  doc.rect(MARGIN, currentY, width, rowHeight * 5);
+
+  // Top Title Row
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0, 51, 153);
+  doc.text('Adler Pelzer Group', MARGIN + 2, currentY + 4.5);
+
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text('PROCESS FLOW DIAGRAM', MARGIN + 52, currentY + 4.5);
+
+  const colSpecialX = MARGIN + 125;
+  doc.line(colSpecialX, currentY, colSpecialX, currentY + rowHeight * 5);
+
+  // Special Document Control box background
+  doc.setFillColor(200, 200, 200);
+  doc.rect(colSpecialX, currentY, width - 125, rowHeight, 'F');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Special document\ncontrol (IF REQ\'D):', colSpecialX + 2, currentY + 2.5);
+
+  doc.line(MARGIN, currentY + rowHeight, MARGIN + width, currentY + rowHeight);
+
+  const drawLabelBox = (x: number, y: number, w: number, text: string) => {
+    doc.setFillColor(220, 220, 220);
+    doc.rect(x, y, w, rowHeight, 'F');
+    doc.rect(x, y, w, rowHeight, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(0, 0, 0);
+    doc.text(text, x + 2, y + 4.2);
+  };
+
+  // Row 1: PART DESCRIPTION & CONTROL NUMBER (En blanco por requerimiento)
+  drawLabelBox(MARGIN, currentY + rowHeight, 35, 'PART DESCRIPTION:');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 51, 153);
+  doc.text(data.header.description || '', MARGIN + 37, currentY + rowHeight + 4.2);
+
+  drawLabelBox(colSpecialX, currentY + rowHeight, 32, 'CONTROL NUMBER:');
+  // Se deja explícitamente en blanco para futura edición desde el IDE
+  doc.text(data.header.documentNumber || '', colSpecialX + 34, currentY + rowHeight + 4.2);
+
+  doc.line(MARGIN, currentY + rowHeight * 2, MARGIN + width, currentY + rowHeight * 2);
+
+  // Row 2: HP PART# & REVISION LEVEL
+  const rawHp = (data.header as any).hpPartNumber || data.header.partNumber;
+  drawLabelBox(MARGIN, currentY + rowHeight * 2, 35, 'HP PART#:');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 51, 153);
+  doc.text(cleanPartNumber(rawHp), MARGIN + 37, currentY + rowHeight * 2 + 4.2);
+
+  drawLabelBox(colSpecialX, currentY + rowHeight * 2, 32, 'REVISION LEVEL:');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 51, 153);
+  doc.text(data.header.revision || '1', colSpecialX + 34, currentY + rowHeight * 2 + 4.2);
+
+  doc.line(MARGIN, currentY + rowHeight * 3, MARGIN + width, currentY + rowHeight * 3);
+
+  // Row 3: CUSTOMER PART# & PREPARED BY
+  const rawCust = (data.header as any).customerPartNumber || data.header.partNumber;
+  drawLabelBox(MARGIN, currentY + rowHeight * 3, 35, 'CUSTOMER PART#:');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 51, 153);
+  doc.text(cleanPartNumber(rawCust), MARGIN + 37, currentY + rowHeight * 3 + 4.2);
+
+  drawLabelBox(colSpecialX, currentY + rowHeight * 3, 32, 'PREPARED BY:');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 51, 153);
+  doc.text('Teresa Gonzalez', colSpecialX + 34, currentY + rowHeight * 3 + 4.2);
+
+  doc.line(MARGIN, currentY + rowHeight * 4, MARGIN + width, currentY + rowHeight * 4);
+
+  return currentY + rowHeight * 5;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  drawSymbolShape
+// ─────────────────────────────────────────────────────────────
+function drawSymbolShape(doc: jsPDF, type: SymbolType, x: number, y: number): void {
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(0, 0, 0);
+
+  switch (type) {
+    case 'operation':
+      doc.setFillColor(235, 30, 30);
+      doc.circle(x, y, 2.3, 'FD');
+      break;
+
+    case 'transport': {
+      doc.setFillColor(245, 140, 30);
+      const arrowLines: [number, number][] = [
+        [2, 0],
+        [0, -1.2],
+        [2.2, 2.2],
+        [-2.2, 2.2],
+        [0, -1.2],
+        [-2, 0],
+        [0, -2],
+      ];
+      doc.lines(arrowLines, x - 2, y - 1, [1, 1], 'FD', true);
+      break;
+    }
+
+    case 'auto_control':
+    case 'pokayoke': {
+      doc.setFillColor(120, 185, 40);
+      const diamondLines: [number, number][] = [
+        [2.4, 2.4],
+        [-2.4, 2.4],
+        [-2.4, -2.4],
+        [2.4, -2.4],
+      ];
+      doc.lines(diamondLines, x, y - 2.4, [1, 1], 'FD', true);
+      break;
+    }
+
+    case 'inspection':
+      doc.setFillColor(60, 180, 115);
+      doc.rect(x - 2, y - 2, 4, 4, 'FD');
+      break;
+
+    case 'delay': {
+      doc.setFillColor(70, 200, 220);
+      const canvas = doc.canvas;
+      if (canvas && (doc as any).context2d) {
+        const ctx2d = (doc as any).context2d;
+        ctx2d.beginPath();
+        ctx2d.fillStyle = 'rgb(70, 200, 220)';
+        ctx2d.strokeStyle = 'rgb(0, 0, 0)';
+        ctx2d.lineWidth = 0.3;
+        ctx2d.moveTo(x - 2, y - 2);
+        ctx2d.lineTo(x, y - 2);
+        ctx2d.arc(x, y, 2, -Math.PI / 2, Math.PI / 2, false);
+        ctx2d.lineTo(x - 2, y + 2);
+        ctx2d.closePath();
+        ctx2d.fill();
+        ctx2d.stroke();
+      } else {
+        doc.rect(x - 2, y - 2, 4, 4, 'FD');
+      }
+      break;
+    }
+
+    case 'storage': {
+      doc.setFillColor(60, 130, 220);
+      const triangleLines: [number, number][] = [
+        [2.2, 4.2],
+        [-4.4, 0],
+        [2.2, -4.2],
+      ];
+      doc.lines(triangleLines, x, y - 2.2, [1, 1], 'FD', true);
+      break;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  generateFlowchartPdf  — Public Entry Point
 // ─────────────────────────────────────────────────────────────
 export async function generateFlowchartPdf(
   data: FlowchartPdfData,
@@ -213,286 +209,158 @@ export async function generateFlowchartPdf(
   const doc = createDocument({ orientation: 'portrait' });
   const pageWidth = doc.internal.pageSize.getWidth();   // 210 mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297 mm
-  const margin = 10;
 
-  // ── Clean / format metadata ──────────────────────────────
-  const extractNP = (str: string) => {
-    const match = str.match(/["']([^"']+)["']/);
-    return match ? match[1] : str.replace(/\*\s*VER PORTADA\s*/g, '').replace(/\*/g, '').trim();
-  };
-  const cleanPartNumber = extractNP(data.header.partNumber);
+  const ctx: PageLayoutContext = { data, t, pageWidth, pageHeight };
 
-  // Use the Cover Code / Doc ID exactly as entered in the UI header form.
-  // data.header.documentNumber is populated by buildPdfData() with header.coverPage
-  // (see ExportFlowchartButton.tsx → buildPdfData → pdfHeader.documentNumber).
-  const docNumber = data.header.documentNumber.trim();
+  const headerEndY = drawCorporateHeader(doc, ctx, MARGIN);
 
-  // ── Shared context object for the per-page layout ────────
-  const ctx: PageLayoutContext = { data, docNumber, t, pageWidth, pageHeight };
-
-  // ── Page 1: draw header ──────────────────────────────────
-  const headerEndY = drawHeader(
-    doc,
-    t('export.flowchart.title') || 'DIAGRAMA DE PROCESO DE FLUJO',
-    docNumber,
-    pageWidth,
-    {
-      partNumber: cleanPartNumber,
-      description: data.header.description || '',
-      engineeringLevel: data.header.revision,
-      customer: data.header.customer,
-      safetyCharacteristic: data.header.safetyCharacteristic,
-      date: data.printDate,
-      revision: data.header.revision,
-    },
-    10,    // startY
-    false, // skipGrid
-    {
-      partNumber: t('export.flowchart.header.partNumber') || 'Número de parte',
-      customer: t('export.flowchart.header.customer') || 'Cliente',
-      description: t('export.flowchart.header.description') || 'Descripción',
-      date: t('export.flowchart.header.date') || 'Fecha',
-      engineeringLevel: t('export.flowchart.header.engineeringLevel') || 'Nivel de Ingeniería',
-      revision: t('export.flowchart.header.revision') || 'Revisión',
-    },
-  );
-
-  // Draw the bottom block on page 1 immediately after the header
-  // (so it exists before autoTable starts filling in rows).
-  drawPageLayout(doc, ctx);
-
-  // ── Column header labels ─────────────────────────────────
   const tableHeaders = [
-    t('export.flowchart.columns.no') || 'No.',
-    t('export.flowchart.columns.description') || 'Descripción',
-    t('export.flowchart.columns.location') || 'Ubicaciones',
-    t('export.flowchart.columns.hic') || 'HIC',
-    t('export.flowchart.columns.quality') || 'Calidad',
-    t('export.flowchart.columns.production') || 'Producción',
-    t('export.flowchart.columns.logistics') || 'Logística',
-    t('export.flowchart.columns.materials') || 'Materiales',
-    t('export.flowchart.columns.others') || 'Otros',
-    t('export.flowchart.columns.norm') || 'Norma',
-    t('export.flowchart.columns.machinery') || 'Maquinaria',
+    'STEP #',
+    'OPERATION DESCRIPTION',
+    '', '', '', '', '', '', '', // Celdas reservadas para dibujo a 90°
+    'PRODUCT\nCHARACTERISTICS',
+    'PROCESS\nCHARACTERISTICS',
+    'TARGET',
   ];
 
-  // ── Map rows to table data ───────────────────────────────
-  const tableData: string[][] = data.rows.map((row: FlowchartPdfRow) => [
+  // Se dejan vacíos los campos de características
+  const tableData = data.rows.map((row: FlowchartPdfRow) => [
     row.stepNumber.toString(),
     row.description,
-    row.location,
-    row.hic === '▽' ? '' : (row.hic || ''),
-    '', // Calidad  — image injected via didDrawCell
-    '', // Produccion
-    '', // Logistica
-    '', // Materiales
-    '', // Otros
-    row.norma,
-    row.maquinaria,
+    '', '', '', '', '', '', '', // Columnas de símbolos + Char ID
+    '', // PRODUCT CHARACTERISTICS (vacío)
+    '', // PROCESS CHARACTERISTICS (vacío)
+    '', // TARGET (vacío)
   ]);
 
-  // ── Main process-flow autoTable ──────────────────────────
   (doc as any).autoTable({
-    startY: headerEndY,
-
-    /**
-     * margin.top  – ensures that on every NEW page a drawHeader is
-     *               called first, then the table content starts below it.
-     * margin.bottom – the usable table zone ends 90 mm above the page
-     *               bottom, keeping rows entirely above the bottom block.
-     */
+    startY: headerEndY + 2,
     margin: {
       top: TABLE_MARGIN_TOP,
       bottom: TABLE_MARGIN_BOTTOM,
-      left: margin,
-      right: margin,
+      left: MARGIN,
+      right: MARGIN,
     },
-
-    tableWidth: pageWidth - margin * 2,
-
+    tableWidth: pageWidth - MARGIN * 2,
     head: [tableHeaders],
     body: tableData,
-
-    /** Repeat the column header row at the top of every new page. */
     showHead: 'everyPage',
-
-    /** Let jspdf-autotable handle page breaks automatically. */
     pageBreak: 'auto',
-
     theme: 'grid',
     styles: {
       fontSize: 8,
-      cellPadding: 2,
-      lineColor: COLORS.border,
+      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }, // Respiro vertical amplio para cada fila
+      minCellHeight: 9,                                     // Altura uniforme para mayor legibilidad
+      lineColor: [0, 0, 0],
       lineWidth: 0.2,
       halign: 'center',
       valign: 'middle',
       textColor: [0, 0, 0],
     },
     headStyles: {
-      fillColor: [240, 240, 240],
+      fillColor: [120, 120, 120],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 6.5,
+      minCellHeight: 28, // Mantiene la proporción en cabecera
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 9, fillColor: [240, 240, 240] },
-      1: { halign: 'center' },             // Description – flexible width
-      2: { halign: 'center', cellWidth: 19 },
-      3: { halign: 'center', textColor: [255, 0, 0], fontStyle: 'bold', cellWidth: 10 },
-      4: { halign: 'center', cellWidth: 15 },
-      5: { halign: 'center', cellWidth: 20 },
-      6: { halign: 'center', cellWidth: 17 },
-      7: { halign: 'center', cellWidth: 18 },
-      8: { halign: 'center', cellWidth: 14 },
-      9: { halign: 'center', cellWidth: 17, fillColor: [240, 240, 240] },
-      10: { halign: 'center', cellWidth: 25, fillColor: [240, 240, 240] },
+      0: { cellWidth: 12, halign: 'center' },
+      1: { halign: 'left' },
+      2: { cellWidth: 7, halign: 'center' },  // OP
+      3: { cellWidth: 7, halign: 'center' },  // TR
+      4: { cellWidth: 7, halign: 'center' },  // SP
+      5: { cellWidth: 7, halign: 'center' },  // IN
+      6: { cellWidth: 7, halign: 'center' },  // DE
+      7: { cellWidth: 7, halign: 'center' },  // ST
+      8: { cellWidth: 14, halign: 'center' }, // CHARACTERISTIC ID
+      9: { cellWidth: 30, halign: 'left' },   // PRODUCT CHARACTERISTICS
+      10: { cellWidth: 30, halign: 'left' },  // PROCESS CHARACTERISTICS
+      11: { cellWidth: 20, halign: 'left' },  // TARGET
     },
 
-    /**
-     * didDrawPage — fires each time autoTable starts a new page
-     * (including subsequent pages 2, 3, …).
-     * We draw the full-page layout (header + bottom block) here so
-     * that every page receives the same static template.
-     */
-    didDrawPage: (hookData: any) => {
-      const pageNumber: number = hookData.pageNumber ?? doc.getCurrentPageInfo().pageNumber;
-
-      // On page 2+ the document header must be redrawn so that the
-      // table's margin.top space is visually occupied.
-      if (pageNumber > 1) {
-        drawHeader(
-          doc,
-          t('export.flowchart.title') || 'DIAGRAMA DE PROCESO DE FLUJO',
-          docNumber,
-          pageWidth,
-          {
-            partNumber: cleanPartNumber,
-            description: data.header.description || '',
-            engineeringLevel: data.header.revision,
-            customer: data.header.customer,
-            safetyCharacteristic: data.header.safetyCharacteristic,
-            date: data.printDate,
-            revision: data.header.revision,
-          },
-          10,   // startY
-          false,
-          {
-            partNumber: t('export.flowchart.header.partNumber') || 'Número de parte',
-            customer: t('export.flowchart.header.customer') || 'Cliente',
-            description: t('export.flowchart.header.description') || 'Descripción',
-            date: t('export.flowchart.header.date') || 'Fecha',
-            engineeringLevel: t('export.flowchart.header.engineeringLevel') || 'Nivel de Ingeniería',
-            revision: t('export.flowchart.header.revision') || 'Revisión',
-          },
-        );
-      }
-
-      // Always draw the bottom block (summary, seal, notes, sigs, footer).
-      drawPageLayout(doc, ctx);
-    },
-
-    /** Inject symbols and the ▽ HIC triangle into body cells. */
     didDrawCell: (hook: any) => {
-      // Symbol images (columns 4–8)
-      if (hook.section === 'body' && hook.column.index >= 4 && hook.column.index <= 8) {
-        const row = data.rows[hook.row.index];
-        if (!row) return;
-
-        const colMap: Record<number, SymbolType | null> = {
-          4: row.symbols.calidad,
-          5: row.symbols.produccion,
-          6: row.symbols.logistica,
-          7: row.symbols.materiales,
-          8: row.symbols.otros,
+      // Cabeceras verticales a 90°
+      if (hook.section === 'head') {
+        const headerLabels: Record<number, { text: string; symbol?: SymbolType }> = {
+          2: { text: 'OPERATION', symbol: 'operation' },
+          3: { text: 'TRANSPORTATION', symbol: 'transport' },
+          4: { text: 'SPLIT / DECISION', symbol: 'auto_control' },
+          5: { text: 'INSPECTION', symbol: 'inspection' },
+          6: { text: 'DELAY', symbol: 'delay' },
+          7: { text: 'STORAGE', symbol: 'storage' },
+          8: { text: 'CHARACTERISTIC ID' },
         };
 
-        const symbolType = colMap[hook.column.index];
-        if (symbolType) {
-          const base64Img = ImageRegistry.symbols[symbolType];
-          if (base64Img) {
-            const dim = 7.5;
-            const x = hook.cell.x + (hook.cell.width - dim) / 2;
-            const y = hook.cell.y + (hook.cell.height - dim) / 2;
-            doc.addImage(base64Img, 'PNG', x, y, dim, dim);
+        const config = headerLabels[hook.column.index];
+        if (config) {
+          const cell = hook.cell;
+          doc.saveGraphicsState();
+
+          doc.setFillColor(120, 120, 120);
+          doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+          doc.rect(cell.x, cell.y, cell.width, cell.height, 'S');
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(5.5);
+          doc.setTextColor(0, 0, 0);
+
+          const centerX = cell.x + cell.width / 2 + 1;
+          const startTextY = cell.y + cell.height - (config.symbol ? 9 : 3);
+
+          doc.text(config.text, centerX, startTextY, {
+            angle: 90,
+            align: 'left',
+          });
+
+          if (config.symbol) {
+            drawSymbolShape(doc, config.symbol, cell.x + cell.width / 2, cell.y + cell.height - 4);
           }
+
+          doc.restoreGraphicsState();
         }
       }
 
-      // HIC column ▽ triangle (column 3)
-      if (hook.section === 'body' && hook.column.index === 3) {
+      // Símbolos activos en las filas
+      if (hook.section === 'body' && hook.column.index >= 2 && hook.column.index <= 7) {
         const row = data.rows[hook.row.index];
-        if (row?.hic === '▽') {
-          const size = 2.5;
-          const topY = hook.cell.y + hook.cell.height / 2 - 1.5;
-          const bottomY = hook.cell.y + hook.cell.height / 2 + 2;
+        if (!row) return;
+
+        const activeSymbols = Object.values(row.symbols);
+        const columnIndexToSymbolMap: Record<number, SymbolType[]> = {
+          2: ['operation'],
+          3: ['transport'],
+          4: ['auto_control', 'pokayoke'],
+          5: ['inspection'],
+          6: ['delay'],
+          7: ['storage'],
+        };
+
+        const targetSymbols = columnIndexToSymbolMap[hook.column.index];
+        const matchedSymbol = activeSymbols.find((s) => s && targetSymbols.includes(s));
+
+        if (matchedSymbol) {
           const centerX = hook.cell.x + hook.cell.width / 2;
-
-          doc.setDrawColor(200, 0, 0);
-          doc.setLineWidth(0.3);
-          doc.triangle(centerX - size, topY, centerX + size, topY, centerX, bottomY, 'S');
-
-          doc.setTextColor(200, 0, 0);
-          doc.setFontSize(5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.text('R', centerX, topY + 1.2, { align: 'center', baseline: 'middle' });
+          const centerY = hook.cell.y + hook.cell.height / 2;
+          drawSymbolShape(doc, matchedSymbol, centerX, centerY);
         }
       }
     },
   });
 
-  // ── Post-processing: inject pagination & watermark ───────
+  // Footer & Pagination
   const totalPages = (doc as any).internal.getNumberOfPages() as number;
-  const nowLabel = t('export.flowchart.footer.printDate') || 'Fecha de impresión:';
-  const revDateLabel = t('export.flowchart.footer.revDate') || 'Fecha de Rev.:';
-  const revLabel = t('export.flowchart.footer.rev') || 'Rev.:';
-
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-
-    // ── ARCHIVED watermark ───────────────────────────────
-    if (data.isArchived) {
-      doc.saveGraphicsState();
-      try {
-        doc.setGState(new (doc as any).GState({ opacity: 0.15 }));
-      } catch {
-        // Fallback when GState is unavailable
-        doc.setTextColor(253, 230, 138);
-      }
-      doc.setTextColor(245, 158, 11);
-      doc.setFontSize(60);
-      doc.setFont('helvetica', 'bold');
-      doc.text(
-        t('archive.status.archived') || 'ARCHIVADO',
-        pageWidth / 2,
-        pageHeight / 2,
-        { align: 'center', angle: 45 },
-      );
-      doc.restoreGraphicsState();
-    }
-
-    // ── Page X of Y ──────────────────────────────────────
-    // Re-draw the footer to stamp the correct page number.
-    // We place "Página X / Y" in the center of the footer area.
-    const footerY = pageHeight - 12;
-    const pageLabel =
-      `${t('export.flowchart.footer.page') || 'Página'} ${i} / ${totalPages}`;
-
+    const footerY = pageHeight - 10;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(0, 0, 0);
 
-    // Left: Rev.
-    doc.text(`${revLabel} ${data.header.revision.padStart(2, '0')}`, margin, footerY + 8);
-
-    // Center (two lines): print date / rev date
-    doc.text(`${nowLabel} ${data.printDate}`, pageWidth / 2, footerY + 3, { align: 'center' });
-    doc.text(`${revDateLabel} ${data.revisionDate}`, pageWidth / 2, footerY + 7, { align: 'center' });
-
-    // Center bottom: page counter
-    doc.text(pageLabel, pageWidth / 2, footerY + 11, { align: 'center' });
-
-    // Right: document code
-    doc.text('FIN - 05', pageWidth - margin, footerY + 8, { align: 'right' });
+    doc.text('G-C3.0 01 F-APQP work book - Rev. 5', MARGIN, footerY);
+    doc.text('FLOW', MARGIN, footerY + 4);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - MARGIN, footerY + 4, { align: 'right' });
   }
 
   return doc.output('blob');

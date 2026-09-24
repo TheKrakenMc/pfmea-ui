@@ -1,0 +1,8 @@
+Global
+
+* Search a translation library to translate input content from users to PDF.
+
+Flowchart
+
+* Change layout to IMS official design
+* Add history table to the flowchart, changes log, only flowchart, later on we will add it to PFMEA
