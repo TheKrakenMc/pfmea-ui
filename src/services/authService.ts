@@ -10,6 +10,7 @@ import axiosClient from '../api/axiosClient';
 
 export interface LoginCredentials {
   email: string;
+  password: string;
 }
 
 export interface CurrentUser {
@@ -17,6 +18,7 @@ export interface CurrentUser {
   full_name: string | null;
   email: string | null;
   role_id: string;
+  role_name: string | null;
   is_active: boolean;
 }
 

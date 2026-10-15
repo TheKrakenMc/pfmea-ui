@@ -1,10 +1,11 @@
+import {useQuery} from '@tanstack/react-query';
 // ─────────────────────────────────────────────────────────────
 //  DocumentHistoryDrawer — Sliding side panel with document
 //  lifecycle timeline, immutable metadata, and retention policy.
 //  AIAG-VDA compliant audit trail visualization.
 // ─────────────────────────────────────────────────────────────
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -25,7 +26,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { getFlowchartHistory } from '../../services/flowchartService';
-import type { FlowchartHistoryRead } from '../../services/flowchartService';
 import { formatDate } from '../../utils/dateUtils';
 
 interface DocumentHistoryDrawerProps {
@@ -76,19 +76,8 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
-  const [history, setHistory] = useState<FlowchartHistoryRead | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setLoading(true);
-    setError(null);
-    getFlowchartHistory(flowchartId)
-      .then(setHistory)
-      .catch(() => setError(t('archive.errors.historyLoadFailed')))
-      .finally(() => setLoading(false));
-  }, [isOpen, flowchartId, t]);
+  const {data:history,isLoading:loading,error:queryError} = useQuery({queryKey:['flowchart-history',flowchartId],queryFn:()=>getFlowchartHistory(flowchartId),enabled:isOpen});
+  const error = queryError ? t('archive.errors.historyLoadFailed') : null;
 
   // Build unified chronological timeline from versions + audit_logs
   const timelineEvents = React.useMemo(() => {
@@ -112,33 +101,33 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
         id: `v-${v.id}`,
         action: v.is_initial_revision ? 'CREATED' : 'REVISED',
         date: v.created_at,
-        performer: v.creator?.full_name,
+        performer: v.creator?.full_name || undefined,
         reason: v.change_reason,
-        eco: v.snapshot_data?.eco_number,
+        eco: typeof v.snapshot_data?.eco_number === "string" ? v.snapshot_data.eco_number : undefined,
         revision: v.revision_number,
-        snapshotSteps: v.snapshot_data?.steps_count,
+        snapshotSteps: typeof v.snapshot_data?.steps_count === "number" ? v.snapshot_data.steps_count : undefined,
       });
     });
 
     // Add audit log entries
     history.audit_logs.forEach((log) => {
       let reasonText = log.action_details || '';
-      
+
       // Convert technical endpoints to user-friendly messages
       if (reasonText.includes('PUT /api/v1/flowcharts/') && reasonText.includes('/steps')) {
-        reasonText = 'Actualización masiva de pasos del diagrama de flujo.';
+        reasonText = t('archive.history.audit.updateSteps', 'Actualización masiva de pasos del diagrama de flujo.');
       } else if (reasonText.includes('PUT /api/v1/flowcharts/')) {
-        reasonText = 'Actualización de propiedades generales del diagrama de flujo.';
+        reasonText = t('archive.history.audit.updateHeader', 'Actualización de propiedades generales del diagrama de flujo.');
       } else if (reasonText.includes('POST /api/v1/flowcharts')) {
-        reasonText = 'Creación inicial del diagrama de flujo.';
+        reasonText = t('archive.history.audit.createFlowchart', 'Creación inicial del diagrama de flujo.');
       } else if (reasonText.includes('PATCH /api/v1/flowcharts/') && reasonText.includes('/archive')) {
-        reasonText = 'El diagrama de flujo ha sido archivado.';
+        reasonText = t('archive.history.audit.archiveFlowchart', 'El diagrama de flujo ha sido archivado.');
       }
 
       if (log.new_values && typeof log.new_values === 'object') {
         const keys = Object.keys(log.new_values).filter(k => k !== 'steps');
         if (keys.length > 0) {
-          reasonText += ` Campos actualizados: ${keys.join(', ')}.`;
+          reasonText += ' ' + t('archive.history.audit.updatedFields', { fields: keys.join(', '), defaultValue: `Campos actualizados: ${keys.join(', ')}.` });
         }
       }
 
@@ -146,20 +135,20 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
         id: `a-${log.id}`,
         action: log.action === 'UPDATE' ? 'REVISED' : log.action,
         date: log.performed_at,
-        performer: log.performer?.full_name,
+        performer: log.performer?.full_name || undefined,
         reason: reasonText,
       });
     });
 
     // Sort chronologically
     return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [history]);
+  }, [history,t]);
 
   // Find archive metadata from the latest archived version
   const archiveVersion = React.useMemo(() => {
     if (!history) return null;
     return history.versions.find((v) =>
-      v.snapshot_data?.status?.toLowerCase() === 'archived' ||
+      String(v.snapshot_data?.status || "").toLowerCase() === 'archived' ||
       v.change_reason?.toLowerCase().includes('archiv')
     ) || history.versions[history.versions.length - 1] || null;
   }, [history]);
@@ -238,7 +227,7 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
               {loading && (
                 <div className="flex items-center justify-center gap-2 p-10 text-steel-400">
                   <Loader2 size={18} className="animate-spin" />
-                  <span className="text-sm">Cargando historial...</span>
+                  <span className="text-sm">{t('common.loadingHistory', 'Cargando historial...')}</span>
                 </div>
               )}
 
@@ -337,7 +326,7 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-steel-200">
-                          Diagrama de Flujo de Proceso (FC)
+                          {t('archive.history.flowchartType', 'Diagrama de Flujo de Proceso (FC)')}
                         </p>
                         <p className="text-xs text-steel-400 mt-0.5 font-mono">
                           #{flowchartId}
@@ -393,7 +382,7 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
                               <Icon size={13} className="text-steel-500 shrink-0" />
                               <span className="text-xs text-steel-400 shrink-0">{label}</span>
                               <span className={`ml-auto text-xs font-medium text-steel-200 ${mono ? 'font-mono' : ''}`}>
-                                {value}
+                                {String(value ?? "")}
                               </span>
                             </div>
                           ))}

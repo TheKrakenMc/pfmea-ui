@@ -1,3 +1,4 @@
+import {calculateActionPriority} from '../../utils/apCalculator';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -136,6 +137,11 @@ const apMatrix = [
   ]}
 ];
 
+const provisionalMatrix = apMatrix.map(severity => ({...severity, groups: severity.groups.map(occurrence => ({...occurrence, dRows: occurrence.dRows.map(detection => {
+  const ap=calculateActionPriority(severity.sRange[0],occurrence.oRange[0],detection.dRange[0]) || 'M';
+  return {...detection,ap,apColor:ap==='H'?'bg-alert-red text-white':ap==='M'?'bg-amber-400 text-black':'bg-green-500 text-black'};
+})}))}));
+
 export const ActionPriorityModal: React.FC<ActionPriorityModalProps> = ({ isOpen, onClose, currentS, currentO, currentD }) => {
   const { t } = useTranslation();
 
@@ -181,7 +187,7 @@ export const ActionPriorityModal: React.FC<ActionPriorityModalProps> = ({ isOpen
             {/* Table Content */}
             <div className="overflow-y-auto p-4 flex-1 bg-slate-50 relative">
               <div className="min-w-[800px] w-full border-collapse border border-slate-400 rounded-lg overflow-hidden shadow-sm bg-slate-50 relative">
-                
+
                 <table className="w-full text-center text-xs">
                   <thead className="bg-slate-800 text-white font-bold border-b border-slate-400">
                     <tr>
@@ -195,20 +201,20 @@ export const ActionPriorityModal: React.FC<ActionPriorityModalProps> = ({ isOpen
                     </tr>
                   </thead>
                   <tbody>
-                    {apMatrix.map((sGroup, sIndex) => {
+                    {provisionalMatrix.map((sGroup, sIndex) => {
                       const isSMatch = inRange(currentS, sGroup.sRange);
                       return sGroup.groups.map((oGroup, oIndex) => {
                         const isOMatch = isSMatch && inRange(currentO, oGroup.oRange);
                         return oGroup.dRows.map((dRow, dIndex) => {
                           const isDMatch = isOMatch && inRange(currentD, dRow.dRange);
-                          
+
                           // Style overrides for highlighted row
                           const rowHighlightClass = isDMatch ? 'relative z-10 ring-2 ring-inset ring-blue-500 bg-blue-50 shadow-lg scale-[1.01] transition-transform' : '';
                           const textHighlightClass = isDMatch ? 'font-black drop-shadow-md' : 'font-medium';
-                          
+
                           return (
                             <tr key={`${sIndex}-${oIndex}-${dIndex}`} className={`${rowHighlightClass} hover:bg-slate-100 transition-colors`}>
-                              
+
                               {/* S Group Cells (only render on first row of the S group) */}
                               {oIndex === 0 && dIndex === 0 && (
                                 <>
@@ -254,7 +260,7 @@ export const ActionPriorityModal: React.FC<ActionPriorityModalProps> = ({ isOpen
                 </table>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="p-4 border-t border-slate-200 bg-slate-900 text-right">
               <span className="text-xs text-slate-400 font-medium">

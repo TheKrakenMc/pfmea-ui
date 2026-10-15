@@ -1,3 +1,4 @@
+import { autoTable, type CellHookData } from 'jspdf-autotable';
 // ─────────────────────────────────────────────────────────────
 //  Flowchart PDF Generator - Faithful IMS Corporate Standard
 //  Optimized Spacing, Empty Control Number & Clean Characteristics
@@ -88,7 +89,7 @@ function drawCorporateHeader(doc: jsPDF, ctx: PageLayoutContext, startY: number 
   doc.line(MARGIN, currentY + rowHeight * 2, MARGIN + width, currentY + rowHeight * 2);
 
   // Row 2: HP PART# & REVISION LEVEL
-  const rawHp = (data.header as any).hpPartNumber || data.header.partNumber;
+  const rawHp = data.header.hpPartNumber || data.header.partNumber;
   drawLabelBox(MARGIN, currentY + rowHeight * 2, 35, 'HP PART#:');
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 51, 153);
@@ -102,7 +103,7 @@ function drawCorporateHeader(doc: jsPDF, ctx: PageLayoutContext, startY: number 
   doc.line(MARGIN, currentY + rowHeight * 3, MARGIN + width, currentY + rowHeight * 3);
 
   // Row 3: CUSTOMER PART# & PREPARED BY
-  const rawCust = (data.header as any).customerPartNumber || data.header.partNumber;
+  const rawCust = data.header.customerPartNumber || data.header.partNumber;
   drawLabelBox(MARGIN, currentY + rowHeight * 3, 35, 'CUSTOMER PART#:');
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 51, 153);
@@ -167,8 +168,8 @@ function drawSymbolShape(doc: jsPDF, type: SymbolType, x: number, y: number): vo
     case 'delay': {
       doc.setFillColor(70, 200, 220);
       const canvas = doc.canvas;
-      if (canvas && (doc as any).context2d) {
-        const ctx2d = (doc as any).context2d;
+      if (canvas && doc.context2d) {
+        const ctx2d = doc.context2d;
         ctx2d.beginPath();
         ctx2d.fillStyle = 'rgb(70, 200, 220)';
         ctx2d.strokeStyle = 'rgb(0, 0, 0)';
@@ -223,17 +224,21 @@ export async function generateFlowchartPdf(
     'TARGET',
   ];
 
-  // Se dejan vacíos los campos de características
-  const tableData = data.rows.map((row: FlowchartPdfRow) => [
-    row.stepNumber.toString(),
-    row.description,
-    '', '', '', '', '', '', '', // Columnas de símbolos + Char ID
-    '', // PRODUCT CHARACTERISTICS (vacío)
-    '', // PROCESS CHARACTERISTICS (vacío)
-    '', // TARGET (vacío)
-  ]);
+  // Poblar datos de la tabla con soporte para sub-pasos y características
+  const tableData = data.rows.map((row: FlowchartPdfRow) => {
+    const isSub = (row.subStep || 0) > 0;
+    return [
+      isSub ? '' : row.stepNumber.toString(),
+      isSub ? '' : row.description,
+      '', '', '', '', '', '', // Columnas de símbolos 2..7
+      row.hic || '',          // Columna 8: CHARACTERISTIC ID
+      row.productCharacteristics || '', // Columna 9: PRODUCT CHARACTERISTICS
+      row.processCharacteristics || '', // Columna 10: PROCESS CHARACTERISTICS
+      row.target || '',                 // Columna 11: TARGET
+    ];
+  });
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: headerEndY + 2,
     margin: {
       top: TABLE_MARGIN_TOP,
@@ -280,7 +285,23 @@ export async function generateFlowchartPdf(
       11: { cellWidth: 20, halign: 'left' },  // TARGET
     },
 
-    didDrawCell: (hook: any) => {
+    didParseCell: (hook: CellHookData) => {
+      // CHARACTERISTIC ID (Columna 8) - Mostrar '@' en rojo y negrita idéntico a PFMEA
+      if (hook.section === 'body' && hook.column.index === 8) {
+        const rawVal = String(hook.cell.raw ?? '').trim().toUpperCase();
+        if (rawVal && rawVal !== 'NONE' && rawVal !== '0' && rawVal !== '') {
+          hook.cell.text = ['@'];
+          hook.cell.styles.textColor = [220, 0, 0]; // Rojo
+          hook.cell.styles.fontStyle = 'bold';
+          hook.cell.styles.fontSize = 8.5;
+          hook.cell.styles.halign = 'center';
+        } else {
+          hook.cell.text = [''];
+        }
+      }
+    },
+
+    didDrawCell: (hook: CellHookData) => {
       // Cabeceras verticales a 90°
       if (hook.section === 'head') {
         const headerLabels: Record<number, { text: string; symbol?: SymbolType }> = {
@@ -328,6 +349,9 @@ export async function generateFlowchartPdf(
         if (!row) return;
 
         const activeSymbols = Object.values(row.symbols);
+        if (row.masterSymbolType && !activeSymbols.includes(row.masterSymbolType)) {
+          activeSymbols.push(row.masterSymbolType);
+        }
         const columnIndexToSymbolMap: Record<number, SymbolType[]> = {
           2: ['operation'],
           3: ['transport'],
@@ -350,7 +374,7 @@ export async function generateFlowchartPdf(
   });
 
   // Footer & Pagination
-  const totalPages = (doc as any).internal.getNumberOfPages() as number;
+  const totalPages = doc.getNumberOfPages() as number;
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     const footerY = pageHeight - 10;

@@ -1,8 +1,9 @@
+import { getErrorMessage } from '../../utils/errors';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, FileEdit, Copy, Archive, FileText, ChevronDown, AlertCircle, X, Loader2, Factory, Hash, Users, FileSignature, GitBranch } from 'lucide-react';
+import { Plus, Archive, AlertCircle, X, Loader2, Users, FileSignature, GitBranch } from 'lucide-react';
 import { pfmeaService, type PfmeaHeader } from '../../api/pfmeaService';
 import { getDocumentHeaders, type FlowchartRead } from '../../services/flowchartService';
 import { PFMEAProjectCard } from '../../components/pfmea/PFMEAProjectCard';
@@ -18,15 +19,7 @@ import { toast } from 'sonner';
 
 // ─── Status badge styles ─────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-slate-500/20 border-slate-500/50',
-  approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
-  archived: 'bg-amber-500/20 text-amber-300 border-amber-500/50',
-};
 
-function getStatusStyle(status: string): string {
-  return STATUS_STYLES[status.toLowerCase()] ?? STATUS_STYLES.draft;
-}
 
 
 
@@ -44,19 +37,21 @@ export const PFMEADashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
-  const [sortOrder, setSortOrder] = useState<string>('date-desc');
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
+  const [selectedStatuses, rawSetSelectedStatuses] = useState<string[]>([]);
+  const setSelectedStatuses = (value: Parameters<typeof rawSetSelectedStatuses>[0]) => { rawSetSelectedStatuses(value); setCurrentPage(1); };
+  const [selectedCustomers, rawSetSelectedCustomers] = useState<string[]>([]);
+  const setSelectedCustomers = (value: Parameters<typeof rawSetSelectedCustomers>[0]) => { rawSetSelectedCustomers(value); setCurrentPage(1); };
+  const [sortOrder, rawSetSortOrder] = useState<string>('date-desc');
+  const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedStatuses, selectedCustomers, sortOrder]);
+
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [flowcharts, setFlowcharts] = useState<FlowchartRead[]>([]);
@@ -65,7 +60,7 @@ export const PFMEADashboard: React.FC = () => {
   // Form fields
   const [projectTitle, setProjectTitle] = useState('');
   const [selectedFlowchartId, setSelectedFlowchartId] = useState<string>('');
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -98,12 +93,12 @@ export const PFMEADashboard: React.FC = () => {
 
     fetchData();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   // ─── Fetch flowcharts when modal opens ──────────────────────
   useEffect(() => {
     if (isModalOpen) {
-      setLoadingFlowcharts(true);
+
       getDocumentHeaders()
         .then((fcData) => {
           const approvedFcData = fcData.filter(fc => fc.status?.toLowerCase() === 'approved');
@@ -119,18 +114,18 @@ export const PFMEADashboard: React.FC = () => {
           setLoadingFlowcharts(false);
         });
     }
-  }, [isModalOpen]);
+  }, [isModalOpen,t]);
 
   // Extract unique options for filters
   const filterOptions = useMemo(() => {
     const statuses = new Set<string>();
     const customers = new Set<string>();
-    
+
     pfmeas.forEach(fc => {
       if (fc.status) statuses.add(fc.status);
       if (fc.customer) customers.add(fc.customer);
     });
-    
+
     return {
       statuses: Array.from(statuses).map(s => ({ value: s, label: t(`status.${s.toLowerCase()}`, s) })),
       customers: Array.from(customers).map(c => ({ value: c, label: c }))
@@ -139,17 +134,17 @@ export const PFMEADashboard: React.FC = () => {
 
   // ─── Filters & Sort ───────────────────────────────────────────────
   const filteredProjects = useMemo(() => {
-    let filtered = pfmeas.filter((fc) => {
+    const filtered = pfmeas.filter((fc) => {
       const matchesSearch =
         fc.project_name.toLowerCase().includes(search.toLowerCase()) ||
         String(fc.id).includes(search) ||
         (fc.part_number && fc.part_number.toLowerCase().includes(search.toLowerCase())) ||
         fc.customer.toLowerCase().includes(search.toLowerCase());
-        
+
       const currentStatus = fc.moc_status || fc.status || '';
       let matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(currentStatus);
       const matchesCustomer = selectedCustomers.length === 0 || selectedCustomers.includes(fc.customer);
-      
+
       const isArchived = currentStatus.toLowerCase() === 'archived';
       if (showArchived && isArchived) {
         matchesStatus = true;
@@ -176,7 +171,7 @@ export const PFMEADashboard: React.FC = () => {
     });
 
     return filtered;
-  }, [pfmeas, search, selectedStatuses, selectedCustomers, sortOrder]);
+  }, [pfmeas, search, selectedStatuses, selectedCustomers, sortOrder, showArchived]);
 
   const paginatedProjects = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -219,9 +214,9 @@ export const PFMEADashboard: React.FC = () => {
 
       // Redirect to Editor
       navigate(`/pfmea/${newPfmea.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating PFMEA:', err);
-      const detail = err.response?.data?.detail || t('pfmea.dashboard.errors.createFailed');
+      const detail = getErrorMessage(err) || t('pfmea.dashboard.errors.createFailed');
       setModalError(detail);
     } finally {
       setSubmitting(false);
@@ -441,7 +436,7 @@ export const PFMEADashboard: React.FC = () => {
                     className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                   />
                 </div>
-                
+
                 {/* Flowchart Select */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-steel-300 uppercase tracking-wider block flex items-center gap-1">

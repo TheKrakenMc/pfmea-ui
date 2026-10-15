@@ -10,10 +10,10 @@ import {
   createProduct,
   updateFlowchart,
   deleteFlowchart,
-  FlowchartCreatePayload,
-  FlowchartUpdatePayload,
-  ProductCreatePayload,
-  FlowchartStepPayload
+  type FlowchartCreatePayload,
+  type FlowchartUpdatePayload,
+  type ProductCreatePayload,
+  type FlowchartStepPayload
 } from '../../services/flowchartService';
 
 // Mock the axiosClient
@@ -93,18 +93,18 @@ describe('flowchartService', () => {
       const mockData = { id: 1, steps: [] };
       vi.mocked(axiosClient.put).mockResolvedValueOnce({ data: mockData });
 
-      const steps: FlowchartStepPayload[] = [{ step_number: 1 }];
-      
+      const steps: FlowchartStepPayload[] = [{ step_number: 1, sub_step: 0, responsible_department: "Quality", symbol_type: "operation", critical_flag: "none" }];
+
       const promise = saveFlowchartSteps(1, steps);
-      
+
       // Should not be called immediately
       expect(axiosClient.put).not.toHaveBeenCalled();
-      
+
       // Fast-forward time
       vi.advanceTimersByTime(2000);
-      
+
       const result = await promise;
-      
+
       expect(axiosClient.put).toHaveBeenCalledWith('/flowcharts/1/steps', { steps });
       expect(result).toEqual(mockData);
     });
@@ -113,16 +113,14 @@ describe('flowchartService', () => {
       const mockData = { id: 1, steps: [] };
       vi.mocked(axiosClient.put).mockResolvedValueOnce({ data: mockData });
 
-      const steps1: FlowchartStepPayload[] = [{ step_number: 1 }];
-      const steps2: FlowchartStepPayload[] = [{ step_number: 1 }, { step_number: 2 }];
+      const steps2: FlowchartStepPayload[] = [{ step_number: 1, sub_step: 0, responsible_department: "Quality", symbol_type: "operation", critical_flag: "none" }, { step_number: 2, sub_step: 0, responsible_department: "Quality", symbol_type: "operation", critical_flag: "none" }];
 
-      const promise1 = saveFlowchartSteps(1, steps1);
-      
+
       vi.advanceTimersByTime(1000); // Wait 1s
-      
+
       // Call again before the first debounce is complete
       const promise2 = saveFlowchartSteps(1, steps2);
-      
+
       vi.advanceTimersByTime(2000); // Wait for the second debounce
 
       const result2 = await promise2;
@@ -146,9 +144,9 @@ describe('flowchartService', () => {
     it('should cancel the timeout so no API call is made', () => {
       saveFlowchartSteps(1, []);
       cancelPendingSave();
-      
+
       vi.advanceTimersByTime(2500);
-      
+
       expect(axiosClient.put).not.toHaveBeenCalled();
     });
   });

@@ -57,9 +57,17 @@ export function buildHeaderFromPfmea(
   productData?: { description?: string | null }
 ): SharedDocumentHeader {
   const teamList = pfmea.team_members
-    ?.map((m) => m.user_full_name || m.role_in_team)
+    ?.map((m) => {
+      const name = m.user_full_name || `Usuario #${m.user_id}`;
+      return m.role_in_team ? `${name} (${m.role_in_team})` : name;
+    })
     .filter(Boolean)
     .join(', ') || 'Core Team';
+
+  const primaryOwner =
+    pfmea.team_members?.find(m => m.user_id === pfmea.owner_id || m.role_in_team?.toLowerCase().includes('owner'))?.user_full_name ||
+    pfmea.team_members?.[0]?.user_full_name ||
+    'Procesos';
 
   return {
     partNumber: pfmea.part_number || 'N/A',
@@ -67,12 +75,12 @@ export function buildHeaderFromPfmea(
     customer: pfmea.customer || 'AUDI de México, S.A. de C.V.',
     plantName: 'Puebla', // Can be mapped from plant_id if needed
     revision: (pfmea.version || 1).toString(),
-    revisionDate: pfmea.revision_date || pfmea.updated_at || new Date().toISOString(),
-    originalDate: pfmea.original_launch_date || pfmea.created_at || new Date().toISOString(),
+    revisionDate: pfmea.revision_date || pfmea.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+    originalDate: pfmea.original_launch_date || pfmea.start_date || pfmea.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
     coverPage: '',
     documentNumber: pfmea.pfmea_id_number || `PFMEA-${pfmea.id}`,
     team: teamList,
-    responsible: 'Procesos', // Default or fetch owner
+    responsible: primaryOwner,
     pfmeaIdNumber: pfmea.pfmea_id_number || `PFMEA-${pfmea.id}`,
     confidentiality: pfmea.confidentiality_level || 'Público',
   };

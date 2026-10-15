@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Search, Check } from 'lucide-react';
@@ -34,9 +34,8 @@ export function ProductSelect({ products, value, onChange }: ProductSelectProps)
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
-      setCoords(null);
       return;
     }
 
@@ -45,9 +44,9 @@ export function ProductSelect({ products, value, onChange }: ProductSelectProps)
         const rect = containerRef.current.getBoundingClientRect();
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
-        const dropdownHeight = 320; 
+        const dropdownHeight = 320;
 
-        let positionCoords: any = {
+        const positionCoords: { top?: number; bottom?: number; left: number; width: number } = {
           left: rect.left,
           width: Math.max(rect.width, 288),
         };

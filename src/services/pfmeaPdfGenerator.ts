@@ -1,3 +1,4 @@
+import { autoTable, type CellHookData, type HookData, type RowInput, type CellDef, type CellInput } from 'jspdf-autotable';
 // ─────────────────────────────────────────────────────────────
 //  PFMEA PDF Generator
 //  Generates the PFMEA document using jsPDF + AutoTable
@@ -192,21 +193,21 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
   // ──────────────────────────────────────────────────────────
   // Draw header on the first page
   // ──────────────────────────────────────────────────────────
-  let currentY = drawStep1Header();
+  const currentY = drawStep1Header();
 
   // Calculate the header height so we know top margin for subsequent pages
   const headerHeight = currentY - margin;
 
   // Main Table Headers (VDA AIAG Grouped)
-  const groupHeaders = [
+  const groupHeaders: RowInput = [
     { content: t('pfmea.worksheet.steps.step2') + '\n(' + t('pfmea.worksheet.steps.step2Desc') + ')', colSpan: 3, styles: { fillColor: [222, 237, 248], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } },
     { content: t('pfmea.worksheet.steps.step3') + '\n(' + t('pfmea.worksheet.steps.step3Desc') + ')', colSpan: 5, styles: { fillColor: [222, 247, 232], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } },
     { content: t('pfmea.worksheet.steps.step4') + '\n(' + t('pfmea.worksheet.steps.step4Desc') + ')', colSpan: 4, styles: { fillColor: [248, 222, 222], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } },
-    { content: t('pfmea.worksheet.steps.step5') + '\n(' + t('pfmea.worksheet.steps.step5Desc') + ')', colSpan: 6, styles: { fillColor: [255, 247, 222], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } }, 
+    { content: t('pfmea.worksheet.steps.step5') + '\n(' + t('pfmea.worksheet.steps.step5Desc') + ')', colSpan: 6, styles: { fillColor: [255, 247, 222], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } },
     { content: t('pfmea.worksheet.steps.step6') + '\n(' + t('pfmea.worksheet.steps.step6Desc') + ')', colSpan: 13, styles: { fillColor: [222, 245, 253], textColor: 0, halign: 'center' as const, fontSize: 12, fontStyle: 'bold' } }
   ];
 
-  const colHeaders: any[] = [
+  const colHeaders: RowInput = [
     '', // 0
     '', // 1
     '', // 2
@@ -274,7 +275,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
     row.observations || ''
   ]);
 
-  const spannedData: any[][] = rawData.map(r => [...r]);
+  const spannedData: CellInput[][] = rawData.map(r => [...r]);
 
   // Combine rows for columns of Step 2 (cols 0, 1, 2) using Virtual RowSpan
   for (let col = 0; col <= 2; col++) {
@@ -296,18 +297,18 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
       if (!isSame) {
         const spanCount = i - spanStartRow;
         if (spanCount >= 1) { // Always create object to support vertical text
-          spannedData[spanStartRow][col] = { 
-            content: rawData[spanStartRow][col], 
+          spannedData[spanStartRow][col] = {
+            content: rawData[spanStartRow][col],
             _isGroupStart: true,
             _originalContent: rawData[spanStartRow][col],
             _isLastInGroup: spanCount === 1
           };
           for (let j = spanStartRow + 1; j < i; j++) {
-            spannedData[j][col] = { 
-              content: rawData[spanStartRow][col], 
-              _isMerged: true, 
-              _originalContent: rawData[spanStartRow][col], 
-              _isLastInGroup: (j === i - 1) 
+            spannedData[j][col] = {
+              content: rawData[spanStartRow][col],
+              _isMerged: true,
+              _originalContent: rawData[spanStartRow][col],
+              _isLastInGroup: (j === i - 1)
             };
           }
         }
@@ -318,9 +319,9 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
 
   // Do NOT filter out nulls since we need all cells for Virtual RowSpan
   const finalTableData = spannedData;
-  let lastPageForCol: { [key: number]: number } = { 0: -1, 1: -1, 2: -1 };
+  const lastPageForCol: { [key: number]: number } = { 0: -1, 1: -1, 2: -1 };
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     margin: { left: margin, right: margin, top: headerHeight + margin, bottom: 20 },
     head: [groupHeaders, colHeaders],
@@ -331,7 +332,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
     styles: {
       fontSize: 12,
       cellPadding: 1,
-      lineColor: COLORS.border,
+      lineColor: COLORS.border as [number, number, number],
       lineWidth: 0.2,
       halign: 'left',
       valign: 'top',
@@ -378,7 +379,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
       29: { halign: 'center', fontStyle: 'bold', cellWidth: 8 },
       30: { halign: 'center', cellWidth: 15 },
     },
-      didParseCell: (dataHook: any) => {
+      didParseCell: (dataHook: CellHookData) => {
         // Force height for the second header row to fit rotated text by injecting dummy lines
         if (dataHook.section === 'head' && dataHook.row.index === 1) {
           const rotatedCols = [0, 1, 2, 9, 13, 15, 16, 17, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30];
@@ -394,27 +395,27 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
         const bodyRotatedCols = [0, 1, 2, 20, 21, 22, 24];
         if (dataHook.section === 'body') {
           const colIdx = dataHook.column.index;
-          
+
           if (bodyRotatedCols.includes(colIdx)) {
-            const raw = dataHook.cell.raw;
+            const raw = dataHook.cell.raw as CellDef;
             let textToRotate = '';
-            
+
             if ([0, 1, 2].includes(colIdx) && raw && typeof raw === 'object') {
                // Virtual RowSpan logic
                const pageNum = dataHook.pageNumber;
                const isFirstOnPage = (pageNum !== lastPageForCol[colIdx]);
                if (isFirstOnPage) lastPageForCol[colIdx] = pageNum;
-               
+
                const showText = raw._isGroupStart || (raw._isMerged && isFirstOnPage);
                raw._restoredOnPage = showText;
-               
-               if (showText) textToRotate = raw._originalContent || '';
+
+               if (showText) textToRotate = String(raw._originalContent || '');
             } else if (typeof raw === 'string') {
                textToRotate = raw;
             } else if (raw && raw.content) {
-               textToRotate = raw.content;
+               textToRotate = String(raw.content || "");
             }
-            
+
             if (textToRotate) {
                dataHook.doc.setFontSize(12);
                const textWidth = dataHook.doc.getTextWidth(textToRotate);
@@ -438,7 +439,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
           else if (colIdx === 5) dataHook.cell.styles.fillColor = [215, 234, 255]; // Light blue for product char
           else if (colIdx === 7) dataHook.cell.styles.fillColor = [227, 215, 255]; // Light purple for process char
           else if (colIdx === 9 || (colIdx >= 12 && colIdx <= 16) || [18, 19, 25, 26, 27, 29, 30].includes(colIdx)) dataHook.cell.styles.fillColor = [216, 251, 228]; // Light Green
-          else if (colIdx === 17 || colIdx === 28) dataHook.cell.styles.fillColor = [199, 229, 255]; // Light Blue
+          else if (Number(colIdx) === 17 || Number(colIdx) === 28) dataHook.cell.styles.fillColor = [199, 229, 255]; // Light Blue
           else if (colIdx >= 20 && colIdx <= 24) dataHook.cell.styles.fillColor = [255, 255, 255]; // White
         }
 
@@ -454,7 +455,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
           else if (colIdx === 17 || colIdx === 28) dataHook.cell.styles.fillColor = [233, 245, 255]; // Pastel Light Blue
           else if (colIdx >= 20 && colIdx <= 24) dataHook.cell.styles.fillColor = [255, 255, 255]; // White
         }
-        
+
       // Emphasize risk cells (S, O, D, AP) with bold text but keep column background colors
       if (dataHook.section === 'body') {
         const colIdx = dataHook.column.index;
@@ -463,23 +464,28 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
             dataHook.cell.styles.fontStyle = 'bold';
           }
         }
-        // Handle inverted triangle symbol which is not supported by jsPDF helvetica
+        // Special Characteristics (Col 17 and Col 28) - Display '@' in red bold text
         if (colIdx === 17 || colIdx === 28) {
-          if (dataHook.cell.raw === '▽' || (dataHook.cell.raw && dataHook.cell.raw.content === '▽')) {
-            dataHook.cell.text = [''];
-            dataHook.cell._isTriangle = true;
+          const rawVal = String((dataHook.cell.raw as CellDef)?.content ?? dataHook.cell.raw ?? '').trim().toUpperCase();
+          if (rawVal === '@' || rawVal === 'CC' || rawVal === 'SC' || rawVal === '▽') {
+            dataHook.cell.text = ['@'];
+            dataHook.cell.styles.textColor = [220, 0, 0]; // Red text
+            dataHook.cell.styles.fontStyle = 'bold';
+            dataHook.cell.styles.fontSize = 8;
+            dataHook.cell.styles.halign = 'center';
+            dataHook.cell._isTriangle = false;
           }
         }
       }
 
     },
-    didDrawCell: (dataHook: any) => {
+    didDrawCell: (dataHook: CellHookData) => {
       // Draw rotated text for rotated headers
       const rotatedCols = [0, 1, 2, 9, 13, 15, 16, 17, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30];
       if (dataHook.section === 'head' && dataHook.row.index === 1 && rotatedCols.includes(dataHook.column.index)) {
         const doc = dataHook.doc;
         let text = '';
-        
+
         if (dataHook.column.index === 0) text = t('pfmea.worksheet.columns.processItem');
         if (dataHook.column.index === 1) text = t('pfmea.worksheet.columns.station');
         if (dataHook.column.index === 2) text = t('pfmea.worksheet.columns.workElement');
@@ -487,25 +493,25 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
         if (dataHook.column.index === 13 || dataHook.column.index === 26) text = t('pfmea.worksheet.columns.occurrence');
         if (dataHook.column.index === 15 || dataHook.column.index === 27) text = t('pfmea.worksheet.columns.detection');
         if (dataHook.column.index === 16 || dataHook.column.index === 29) text = t('pfmea.worksheet.columns.ap');
-        if (dataHook.column.index === 17 || dataHook.column.index === 28) text = t('pfmea.worksheet.abbr.specialCharacteristics');
+        if (Number(dataHook.column.index) === 17 || Number(dataHook.column.index) === 28) text = t('pfmea.worksheet.abbr.specialCharacteristics');
         if (dataHook.column.index === 20) text = t('pfmea.worksheet.columns.responsible');
         if (dataHook.column.index === 21) text = t('pfmea.worksheet.columns.targetDate');
         if (dataHook.column.index === 22) text = t('pfmea.worksheet.columns.status');
         if (dataHook.column.index === 24) text = t('pfmea.worksheet.columns.optCompletionDate');
         if (dataHook.column.index === 30) text = t('pfmea.worksheet.abbr.optObservations');
-        
+
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
         doc.setFont('helvetica', 'bold');
-        
+
         const availableHeight = dataHook.cell.height - 4; // 2px padding top/bottom
         const textLines = doc.splitTextToSize(text, availableHeight);
-        
+
         const lineHeight = 4.8; // Approx line height for font size 12
         const totalTextBlockWidth = textLines.length * lineHeight;
-        
+
         let startX = dataHook.cell.x + dataHook.cell.width / 2 - totalTextBlockWidth / 2 + (lineHeight / 2);
-        
+
         textLines.forEach((line: string) => {
            const lineW = doc.getTextWidth(line);
            const y = dataHook.cell.y + dataHook.cell.height / 2 + lineW / 2;
@@ -516,7 +522,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
 
       // Virtual RowSpan: Erase top border of merged cells to look like rowSpan
       if (dataHook.section === 'body' && (dataHook.column.index === 0 || dataHook.column.index === 1 || dataHook.column.index === 2)) {
-        const raw = dataHook.cell.raw;
+        const raw = dataHook.cell.raw as CellDef;
         if (raw && raw._isMerged) {
             // Erase top border if this is NOT the first cell shown on the page
             if (!raw._restoredOnPage) {
@@ -556,7 +562,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
             doc.setDrawColor(0, 0, 0); // reset
             doc.setLineWidth(0.2);
         }
-        
+
         // Render the rotated body text manually
         const bodyRotatedCols = [0, 1, 2, 20, 21, 22, 24];
         if (dataHook.section === 'body' && bodyRotatedCols.includes(dataHook.column.index)) {
@@ -566,37 +572,37 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
                doc.setFontSize(12); // match body fontSize
                doc.setTextColor(0, 0, 0);
                doc.setFont('helvetica', 'normal');
-               
+
                const padding = 2;
                // Limit vertical text length to remaining page height so it doesn't overflow the page
-               const remainingSpace = doc.internal.pageSize.height - dataHook.cell.y - 20; 
+               const remainingSpace = doc.internal.pageSize.height - dataHook.cell.y - 20;
                const textLines = doc.splitTextToSize(textToDraw, remainingSpace);
-               
+
                const lineHeight = 4.8; // match body line height for size 12
                const totalBlockWidth = textLines.length * lineHeight;
-               
+
                let startX = dataHook.cell.x + dataHook.cell.width / 2 - totalBlockWidth / 2 + (lineHeight / 2);
-               
+
                textLines.forEach((line: string) => {
                    const lineW = doc.getTextWidth(line);
                    // Because angle 90 draws bottom-to-top, the starting Y must be at the BOTTOM of the text line
-                   const y = dataHook.cell.y + padding + lineW; 
-                   
+                   const y = dataHook.cell.y + padding + lineW;
+
                    doc.text(line, startX, y, { angle: 90 });
                    startX += lineHeight;
                });
            }
         }
-        
+
         // Render manual triangle if required
-        if (dataHook.section === 'body' && (dataHook.column.index === 17 || dataHook.column.index === 28)) {
+        if (dataHook.section === 'body' && (Number(dataHook.column.index) === 17 || Number(dataHook.column.index) === 28)) {
           if (dataHook.cell._isTriangle) {
             const doc = dataHook.doc;
             const size = 3;
             const topY = dataHook.cell.y + dataHook.cell.height / 2 - 2;
             const bottomY = dataHook.cell.y + dataHook.cell.height / 2 + 2.5;
             const centerX = dataHook.cell.x + dataHook.cell.width / 2;
-            
+
             doc.setDrawColor(200, 0, 0);
             doc.setLineWidth(0.3);
             doc.triangle(
@@ -605,7 +611,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
               centerX, bottomY,
               'S'
             );
-            
+
             doc.setTextColor(200, 0, 0);
             doc.setFontSize(5);
             doc.setFont('helvetica', 'bold');
@@ -614,7 +620,7 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
         }
       }
     },
-    didDrawPage: (hookData: any) => {
+    didDrawPage: (hookData: HookData) => {
       // Redraw Step 1 header on every page after the first
       if (hookData.pageNumber > 1) {
         drawStep1Header();
@@ -625,11 +631,11 @@ export async function generatePfmeaPdf(data: PfmeaPdfData, t: (key: string) => s
   // ──────────────────────────────────────────────────────────
   // Footer with page numbering on ALL pages
   // ──────────────────────────────────────────────────────────
-  const pageCount = (doc as any).internal.getNumberOfPages();
+  const pageCount = doc.getNumberOfPages();
   const pageLabel = t('export.pfmea.footer.page') || 'Página';
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    drawFooter(doc, data.header.revision, data.printDate, data.revisionDate, pageWidth, pageHeight, 'FIN-07', t('export.pfmea.footer.printDate') || 'Fecha de impresión:', t('export.pfmea.footer.revisionDate') || 'Fecha de Rev.:', t('export.pfmea.footer.rev') || 'Rev.:');
+    drawFooter(doc, data.header.revision, data.printDate, data.revisionDate, pageWidth, pageHeight, 'FIN-07', t('export.pfmea.footer.printDate') || 'Fecha de impresión:', t('export.pfmea.footer.revisionDate') || 'Fecha de Rev.:', (t('export.pfmea.footer.rev') === 'export.pfmea.footer.rev' ? 'Rev.:' : t('export.pfmea.footer.rev')));
 
     // Page numbering: "Página n/m" placed slightly above the FIN code
     doc.setFont('helvetica', 'normal');

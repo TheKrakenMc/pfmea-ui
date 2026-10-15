@@ -1,0 +1,30 @@
+{
+  "uiSavePassed": true,
+  "explicitRecoveryPassed": true,
+  "staleDraftConflictPassed": true,
+  "draftPreservedAfterConflict": true,
+  "virtualizedEditPreserved": true,
+  "saves": [
+    {
+      "rows": 1,
+      "deleted": 0,
+      "expectedVersion": 3
+    },
+    {
+      "rows": 1,
+      "deleted": 0,
+      "expectedVersion": 4
+    },
+    {
+      "rows": 1,
+      "deleted": 0,
+      "expectedVersion": 4
+    },
+    {
+      "rows": 1,
+      "deleted": 0,
+      "expectedVersion": 1
+    }
+  ],
+  "errors": []
+}

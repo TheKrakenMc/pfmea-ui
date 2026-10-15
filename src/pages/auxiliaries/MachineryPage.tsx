@@ -1,3 +1,4 @@
+import {useAuth} from '../../hooks/useAuth';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,24 +18,27 @@ import type { Machinery } from '../../types/machinery.types';
 
 const MachineryPage: React.FC = () => {
   const { t } = useTranslation();
+  const {user}=useAuth();
   const queryClient = useQueryClient();
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMachinery, setEditingMachinery] = useState<Machinery | null>(null);
-  
+
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [search, setSearch] = useState('');
-  const [selectedPlant, setSelectedPlant] = useState<string>('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'recent' | 'nameAsc' | 'nameDesc'>('recent');
-  
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
+  const [selectedPlant, rawSetSelectedPlant] = useState<string>('');
+  const setSelectedPlant = (value: Parameters<typeof rawSetSelectedPlant>[0]) => { rawSetSelectedPlant(value); setCurrentPage(1); };
+  const [selectedLocation, rawSetSelectedLocation] = useState<string>('');
+  const setSelectedLocation = (value: Parameters<typeof rawSetSelectedLocation>[0]) => { rawSetSelectedLocation(value); setCurrentPage(1); };
+  const [sortBy, rawSetSortBy] = useState<'recent' | 'nameAsc' | 'nameDesc'>('recent');
+  const setSortBy = (value: Parameters<typeof rawSetSortBy>[0]) => { rawSetSortBy(value); setCurrentPage(1); };
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedPlant, selectedLocation, sortBy]);
+
 
   const { data: machinery = [], isLoading } = useQuery({
     queryKey: ['machinery'],
@@ -65,7 +69,7 @@ const MachineryPage: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: any }) => updateMachinery(id, data),
+    mutationFn: ({ id, data }: { id: number, data: Parameters<typeof updateMachinery>[1] }) => updateMachinery(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machinery'] });
       toast.success('Maquinaria actualizada exitosamente');
@@ -103,11 +107,12 @@ const MachineryPage: React.FC = () => {
     setEditingMachinery(null);
   };
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: Parameters<typeof createMachinery>[0] | Parameters<typeof updateMachinery>[1]) => {
     if (editingMachinery) {
       updateMutation.mutate({ id: editingMachinery.id, data });
     } else {
-      createMutation.mutate(data);
+      if (!data.machinery_name || !data.machinery_code || !user?.plant_id) {toast.error('Nombre, código y planta son obligatorios');return;}
+      createMutation.mutate({...data,machinery_name:data.machinery_name,machinery_code:data.machinery_code,plant_id:user.plant_id});
     }
   };
 
@@ -122,7 +127,7 @@ const MachineryPage: React.FC = () => {
     const matchesSearch = item.machinery_name.toLowerCase().includes(term) || item.machinery_code.toLowerCase().includes(term);
     const matchesPlant = selectedPlant ? item.plant_id.toString() === selectedPlant : true;
     const matchesLocation = selectedLocation ? item.location_id?.toString() === selectedLocation : true;
-    
+
     return matchesSearch && matchesPlant && matchesLocation;
   }).sort((a, b) => {
     if (sortBy === 'nameAsc') {
@@ -179,7 +184,7 @@ const MachineryPage: React.FC = () => {
       <div className="relative flex-1 min-w-[140px]">
         <select
           value={sortBy}
-          onChange={(e: any) => setSortBy(e.target.value)}
+          onChange={(e) => setSortBy(e.target.value as 'recent' | 'nameAsc' | 'nameDesc')}
           className="w-full appearance-none bg-steel-950 border border-steel-700 rounded-lg pl-3 pr-8 py-2 text-sm text-steel-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
         >
           <option value="recent">{t('sort.newest', 'Más recientes')}</option>
@@ -249,13 +254,13 @@ const MachineryPage: React.FC = () => {
 
       <AnimatePresence>
         {isFormOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-steel-950/80 backdrop-blur-sm"
           >
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}

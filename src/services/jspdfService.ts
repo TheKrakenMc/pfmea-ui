@@ -1,11 +1,11 @@
+import { autoTable } from 'jspdf-autotable';
 // ─────────────────────────────────────────────────────────────
 //  jsPDF Service — Shared Utilities for PDF Generation
 //  Handles document setup, shared headers/footers, and Base64 images.
 // ─────────────────────────────────────────────────────────────
 
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { ImageRegistry } from './imageRegistry';
+
 
 export const COLORS = {
   headerBg: [26, 58, 92], // #1a3a5c
@@ -18,7 +18,7 @@ export const COLORS = {
 
 export interface PdfOptions {
   orientation?: 'portrait' | 'landscape';
-  format?: 'a4' | 'tabloid' | 'ledger';
+  format?: 'a2' | 'a4' | 'tabloid' | 'ledger';
 }
 
 /**
@@ -67,17 +67,17 @@ export function drawHeader(
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.2);
   doc.rect(margin, currentY, pageWidth - margin * 2, 12);
-  
+
   // Left: APG Text
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0, 51, 153); // APG Blue
   doc.text('Adler Pelzer Group', margin + 2, currentY + 8);
-  
+
   // Center: Title
   doc.setTextColor(0, 0, 0);
   doc.text(title, pageWidth / 2, currentY + 8, { align: 'center' });
-  
+
   // Right: Customer Logo/Text Space (width 30)
   doc.line(pageWidth - margin - 50, currentY, pageWidth - margin - 50, currentY + 12);
   doc.setFontSize(6);
@@ -89,21 +89,21 @@ export function drawHeader(
   doc.line(pageWidth - margin - 20, currentY, pageWidth - margin - 20, currentY + 12);
   const safeChar = data.safetyCharacteristic || 'D';
   const centerX = pageWidth - margin - 10;
-  
+
   if (safeChar === '▽') {
     doc.setDrawColor(200, 0, 0);
     doc.setLineWidth(0.5);
     const size = 4.5;
     const topY = currentY + 2.5;
     const bottomY = currentY + 9.5;
-    
+
     doc.triangle(
       centerX - size, topY,
       centerX + size, topY,
       centerX, bottomY,
       'S'
     );
-    
+
     doc.setTextColor(200, 0, 0);
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
@@ -113,7 +113,7 @@ export function drawHeader(
     doc.setFontSize(18);
     doc.text(safeChar.replace(/<|>/g, ''), centerX, currentY + 9, { align: 'center' });
   }
-  
+
   currentY += 12;
 
   if (skipGrid) {
@@ -121,7 +121,7 @@ export function drawHeader(
   }
 
   // Metadata Grid using autoTable for dynamic height and text wrapping
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     margin: { left: margin, right: margin },
     theme: 'grid',
@@ -163,7 +163,7 @@ export function drawHeader(
     }
   });
 
-  return (doc as any).lastAutoTable.finalY + 5; // +5 padding before table
+  return (doc.lastAutoTable?.finalY || 0) + 5; // +5 padding before table
 }
 
 /**
@@ -183,7 +183,7 @@ export function drawFooter(
 ) {
   const margin = 10;
   const footerY = pageHeight - 12;
-  
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
-import { FlowchartStep, SymbolType } from '../../types/flowchart.types';
+import { DragDropContext, Droppable, type DropResult } from '@hello-pangea/dnd';
+import type { FlowchartStep } from '../../types/flowchart.types';
 import { FlowchartRow } from '../../components/flowcharts/FlowchartRow';
 
 // Datos falsos iniciales
@@ -12,10 +12,11 @@ const initialSteps: FlowchartStep[] = [
     operationName: 'Recepción de Materia Prima',
     description: '',
     isCritical: false,
-    symbolType: SymbolType.TRANSPORT,
+    symbolType: 'transport',
     departmentId: 1,
-    machineryIds: [],
-    notes: '',
+    machineryId: null,
+    subStep: 0,
+    criticalFlag: 'none',
     responsibleDepartment: 'Logística',
   },
   {
@@ -25,10 +26,11 @@ const initialSteps: FlowchartStep[] = [
     operationName: 'Inspección de Calidad',
     description: '',
     isCritical: true,
-    symbolType: SymbolType.INSPECTION,
+    symbolType: 'inspection',
     departmentId: 2,
-    machineryIds: [],
-    notes: '',
+    machineryId: null,
+    subStep: 0,
+    criticalFlag: 'none',
     responsibleDepartment: 'Calidad',
   },
 ];
@@ -48,7 +50,7 @@ const mockMachineries = [
 export const FlowchartWorkspace: React.FC = () => {
   const [steps, setSteps] = useState<FlowchartStep[]>(initialSteps);
 
-  const handleUpdateStep = (id: string, field: keyof FlowchartStep, value: any) => {
+  const handleUpdateStep = (id: string, field: keyof FlowchartStep, value: FlowchartStep[keyof FlowchartStep]) => {
     setSteps((prev) =>
       prev.map((step) => (step.id === id ? { ...step, [field]: value } : step))
     );
@@ -84,11 +86,12 @@ export const FlowchartWorkspace: React.FC = () => {
       operationName: 'Nueva Operación',
       description: '',
       isCritical: false,
-      symbolType: SymbolType.OPERATION,
+      symbolType: 'operation',
       departmentId: undefined,
-      machineryIds: [],
-      notes: '',
-      responsibleDepartment: 'Producción',
+      machineryId: null,
+    subStep: 0,
+    criticalFlag: 'none',
+        responsibleDepartment: 'Producción',
     };
     setSteps([...steps, newStep]);
   };

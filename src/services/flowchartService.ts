@@ -14,10 +14,14 @@ export interface FlowchartStepRead {
   technology_id: number | null;
   machinery_id: number | null;
   step_number: number;
+  sub_step: number;
   custom_description: string | null;
   responsible_department: string;
   symbol_type: string;
   critical_flag: string;
+  product_characteristics?: string | null;
+  process_characteristics?: string | null;
+  target?: string | null;
   technology?: {
     id: number;
     name: string;
@@ -37,6 +41,7 @@ export interface ProductRead {
   part_number: string | null;
   customer_part_number: string | null;
   description: string | null;
+  customer?: { safety_characteristic?: string | null };
 }
 
 export interface ProductCreatePayload {
@@ -47,12 +52,16 @@ export interface ProductCreatePayload {
 }
 
 export interface FlowchartRead {
+  plant_id: number;
   id: number;
   product_id: number;
   owner_id: number | null;
   title: string;
+  type?: string;
   status: string;
   version: number;
+  lock_version: number;
+  needs_review: boolean;
   created_at: string;
   updated_at: string;
   steps: FlowchartStepRead[];
@@ -61,13 +70,18 @@ export interface FlowchartRead {
 }
 
 export interface FlowchartStepPayload {
+  id?: number;
   technology_id?: number | null;
   machinery_id?: number | null;
   step_number: number;
+  sub_step: number;
   custom_description?: string | null;
   responsible_department: string;
   symbol_type: string;
   critical_flag: string;
+  product_characteristics?: string | null;
+  process_characteristics?: string | null;
+  target?: string | null;
 }
 
 export interface FlowchartCreatePayload {
@@ -235,7 +249,7 @@ export interface DocumentVersionRead {
   created_at: string;
   original_creation_date: string;
   observations?: string | null;
-  snapshot_data?: Record<string, any> | null;
+  snapshot_data?: Record<string, unknown> | null;
   is_initial_revision: boolean;
   creator?: UserMinimalRead | null;
 }
@@ -245,8 +259,8 @@ export interface AuditLogRead {
   action: string;
   performed_by: number;
   action_details?: string | null;
-  previous_values?: Record<string, any> | null;
-  new_values?: Record<string, any> | null;
+  previous_values?: Record<string, unknown> | null;
+  new_values?: Record<string, unknown> | null;
   performed_at: string;
   performer?: UserMinimalRead | null;
 }
@@ -286,4 +300,8 @@ export async function getFlowchartHistory(
     `/flowcharts/${id}/history`,
   );
   return data;
+}
+
+export async function saveFlowchartDocument(id: number, expectedVersion: number, header: FlowchartUpdatePayload, steps: FlowchartStepPayload[]): Promise<FlowchartRead> {
+  return (await axiosClient.put('/flowcharts/' + id + '/save', {expected_version:expectedVersion,header,steps}, {headers:{'If-Match':String(expectedVersion)}})).data;
 }

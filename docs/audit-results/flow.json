@@ -1,0 +1,14 @@
+{
+  "result": {
+    "product": 2,
+    "diagram": 2,
+    "pfmea": 5,
+    "plan": 2,
+    "pfmeaStatus": "Approved",
+    "planStatus": "Approved",
+    "sourceRow": 1602,
+    "ownerValidated": true,
+    "residualSeverity": 9
+  },
+  "failures": []
+}

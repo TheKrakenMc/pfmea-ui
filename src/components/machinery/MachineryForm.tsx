@@ -68,7 +68,7 @@ export const MachineryForm: React.FC<MachineryFormProps> = ({
             {t('machinery.form.assetCode', 'Código de Activo')} <span className="text-red-400">*</span>
           </label>
           <input
-            {...register('machinery_code', { 
+            {...register('machinery_code', {
               required: t('machinery.form.errors.codeRequired', 'El código es requerido'),
               pattern: {
                 value: /^[a-zA-Z0-9-]+$/,
@@ -82,7 +82,7 @@ export const MachineryForm: React.FC<MachineryFormProps> = ({
             <p className="text-red-400 text-xs mt-1.5">{errors.machinery_code.message}</p>
           )}
         </div>
-        
+
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
             {t('machinery.form.status', 'Estatus')}

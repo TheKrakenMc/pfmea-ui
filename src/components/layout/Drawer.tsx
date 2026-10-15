@@ -2,9 +2,9 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Users, Box, Package, Wrench, Settings, MapPin, GitBranch, ClipboardList, Zap, Ruler } from 'lucide-react';
+import { ChevronDown, Users, Box, Package, Wrench, MapPin, GitBranch, ClipboardList, ShieldCheck, Zap, Ruler } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import {useAuth} from '../../hooks/useAuth';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -75,13 +75,17 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose }) => {
                 <ClipboardList className="w-4 h-4 mr-1.5 inline-block" />
                 {t('navbar.pfmea')}
               </NavLink>
+              <NavLink to="/control-plans" className={navLinkClasses} onClick={onClose}>
+                <ShieldCheck className="w-4 h-4 mr-1.5 inline-block" />
+                {t('navbar.controlPlan', 'Plan de Control')}
+              </NavLink>
               {isAdmin && (
                 <NavLink to="/admin/users" className={navLinkClasses} onClick={onClose}>
                   <Users className="w-4 h-4 mr-1.5 inline-block" />
                   {t("navbar.users", "Usuarios")}
                 </NavLink>
               )}
-              
+
               <div className="mt-4 pt-4 border-t border-steel-800">
                 <h4 className="px-4 text-xs font-semibold text-steel-400 uppercase tracking-wider mb-2">
                   {t('navbar.auxiliaries.title', 'Auxiliares')}

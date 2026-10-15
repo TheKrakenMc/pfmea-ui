@@ -9,6 +9,7 @@ import type {
   TechnologyUpdatePayload,
   TechnologyImpact,
   TechnologyCategory,
+
 } from '../types/technology.types';
 
 export type { TechnologyCategory };
@@ -52,12 +53,7 @@ export async function getTechnologyImpact(id: number): Promise<TechnologyImpact>
 
 // ── Technology Categories CRUD ─────────────────────────────────────────────
 
-export interface TechnologyCategory {
-  id: number;
-  name: string;
-  description?: string;
-  is_active: boolean;
-}
+
 
 export async function listTechnologyCategories(): Promise<TechnologyCategory[]> {
   const { data } = await axiosClient.get<TechnologyCategory[]>('/technology-categories');

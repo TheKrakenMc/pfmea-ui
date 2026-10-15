@@ -1,73 +1,30 @@
-# React + TypeScript + Vite
+# PFMEA UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación Vite + React + TypeScript para gestionar productos, diagramas, PFMEA y planes de control mediante pfmea-api.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+    npm ci
+    npm run dev
 
-## React Compiler
+Configurar VITE_API_BASE_URL en .env.local con la URL de la API terminada en /api/v1. Para un ensayo exclusivamente sintético, usar http://localhost:8014/api/v1 e iniciar python -m scripts.audit_server desde el repositorio hermano; el navegador de auditoría utiliza el puerto 5174.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Comportamiento
 
-## Expanding the ESLint configuration
+Login con contraseña y cookies HttpOnly; CSRF en escrituras. Selector de plantas autorizadas por el servidor. Los borradores se separan por usuario, planta y documento; la recuperación es explícita. Guardar en local no equivale a guardar en servidor. Los conflictos 409 conservan el borrador.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Los formularios y acciones se ajustan al rol y al estado documental. Las tablas PFMEA grandes renderizan sólo filas visibles, conservando el conjunto completo para guardar y exportar. Los planes enlazan controles con IDs estables de filas PFMEA y conservan las procedencias históricas.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Calidad
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+    npm run typecheck
+    npm run lint
+    npm run test -- --run
+    npm run build
+    npm audit
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Build incluye TypeScript. CI ejecuta tipos, lint, pruebas, build y auditoría de dependencias. Se conserva package-lock.json.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Con ambos repositorios disponibles, node scripts/verify-postgres.mjs ensaya migraciones y RLS sobre datos sintéticos. node scripts/audit-ui.mjs comprueba pantallas y rendimiento; node scripts/audit-flow.mjs verifica el flujo de aprobación a través del navegador y la API de ensayo. Estos scripts requieren la API sintética; no apuntan al entorno real.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+La revisión normativa queda fuera de una prueba de software: la AP deriva provisionalmente de las reglas Python existentes. Véase la documentación de pfmea-api y el informe de implementación en la carpeta raíz del proyecto.

@@ -9,7 +9,7 @@
 export type DiagramStatus = 'draft' | 'in_review' | 'approved' | 'archived';
 
 /** Critical characteristic classification per AIAG/VDA */
-export type CriticalFlag = 'none' | 'CC' | 'SC';
+export type CriticalFlag = 'none' | 'CC' | 'SC' | '@';
 
 /** ISO process symbol types for flowchart visualization (Industrial Standard) */
 export type SymbolType =
@@ -70,6 +70,7 @@ export interface FlowchartHeader {
 export interface FlowchartStep {
   id: string;
   sequence: number;           // Multiples of 10 (10, 20, 30…)
+  subStep: number;            // 0 for master, 1, 2... for intermediate sub-steps
   operationId: string;        // FK → PlantOperation.id
   operationName: string;      // Denormalized for display
   criticalFlag: CriticalFlag;
@@ -79,6 +80,9 @@ export interface FlowchartStep {
   isCritical?: boolean;
   responsibleDepartment: string;
   description?: string;
+  productCharacteristics?: string;
+  processCharacteristics?: string;
+  target?: string;
 }
 
 // ─── Catalog / Reference Data ────────────────────────────────
@@ -101,6 +105,7 @@ export interface OperationCategory {
 
 /** Complete workspace state managed by FlowchartContext */
 export interface FlowchartState {
+  lockVersion?: number;
   flowchartId: number | null; // Backend flowchart ID (null for new/unsaved)
   header: FlowchartHeader;
   steps: FlowchartStep[];
@@ -113,7 +118,8 @@ export interface FlowchartState {
 
 export type FlowchartAction =
   | { type: 'ADD_STEP'; payload?: FlowchartStep }
-  | { type: 'UPDATE_STEP'; payload: { id: string; field: keyof FlowchartStep; value: any } }
+  | { type: 'ADD_SUB_STEP'; payload: { parentStepId: string } }
+  | { type: 'UPDATE_STEP'; payload: { id: string; field: keyof FlowchartStep; value: unknown } }
   | { type: 'DELETE_STEP'; payload: { id: string } }
   | { type: 'REORDER_STEPS'; payload: { sourceIndex: number; destinationIndex: number } }
   | { type: 'DUPLICATE_STEP'; payload: { id: string } }

@@ -26,7 +26,7 @@ export const MOCView: React.FC<MOCViewProps> = ({ logs }) => {
         <History className="text-indigo-400" size={20} />
         <h2 className="text-sm font-bold text-steel-100 uppercase tracking-widest">{t('pfmea.moc.title')}</h2>
       </div>
-      
+
       <div className="divide-y divide-steel-800/50">
         {logs.map((log) => (
           <div key={log.id} className="p-6 hover:bg-steel-800/20 transition-colors">
@@ -72,7 +72,7 @@ export const MOCView: React.FC<MOCViewProps> = ({ logs }) => {
                 <div className="absolute -left-[19px] top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 bg-steel-900 rounded-full border border-steel-700/50 shadow-xl z-10">
                   <ArrowRight size={14} className="text-steel-400" />
                 </div>
-                
+
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-400/80">
                   <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
                   {t('pfmea.moc.newValue')}

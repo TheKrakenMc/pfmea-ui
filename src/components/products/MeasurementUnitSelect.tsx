@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { ChevronDown, Search, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -28,44 +28,40 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
   // Group by magnitude and filter by search term
   const groupedUnits = useMemo(() => {
     const filtered = units.filter(
-      u => u.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u => u.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
            u.symbology.toLowerCase().includes(searchTerm.toLowerCase()) ||
            (u.magnitude || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
+
     const groups: Record<string, MeasurementUnit[]> = {};
     filtered.forEach(u => {
       const mag = u.magnitude || 'Otras';
       if (!groups[mag]) groups[mag] = [];
       groups[mag].push(u);
     });
-    
+
     // Sort groups alphabetically
     const sortedGroups: Record<string, MeasurementUnit[]> = {};
     Object.keys(groups).sort().forEach(key => {
       sortedGroups[key] = groups[key];
     });
-    
+
     return sortedGroups;
   }, [units, searchTerm]);
 
   const selectedUnit = units.find(u => u.id === value);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setCoords(null);
-      setSearchTerm(''); // reset search when closed
-      return;
-    }
+  useLayoutEffect(() => {
+    if (!isOpen) return;
 
     const updateCoords = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
-        const dropdownHeight = 320; 
+        const dropdownHeight = 320;
 
-        let positionCoords: any = {
+        const positionCoords: { top?: number; bottom?: number; left: number; width: number } = {
           left: rect.left,
           width: rect.width,
         };
@@ -125,7 +121,7 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => !disabled && (setSearchTerm(''), setIsOpen(!isOpen))}
         className={`w-full bg-steel-900 border ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-steel-700'} rounded-lg px-2.5 py-1.5 text-sm text-left flex items-center justify-between transition-colors disabled:opacity-70 disabled:cursor-not-allowed h-9`}
       >
         <span className={`truncate mr-2 ${selectedUnit ? 'text-steel-100' : 'text-steel-400'}`}>
@@ -163,7 +159,7 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
                 className="w-full bg-steel-950 border border-steel-800 rounded-md py-1.5 pl-8 pr-3 text-sm text-steel-100 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
-            
+
             <div className="overflow-y-auto flex-1 p-1 custom-scrollbar">
               <button
                 type="button"
@@ -172,7 +168,7 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
               >
                 Ninguno
               </button>
-              
+
               {Object.keys(groupedUnits).length === 0 ? (
                 <div className="py-4 text-center text-sm text-steel-500">
                   {t('common.noResults', 'No se encontraron resultados')}
@@ -191,8 +187,8 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
                           type="button"
                           onClick={() => handleSelect(unit.id)}
                           className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
-                            isSelected 
-                              ? 'bg-indigo-500/10 text-indigo-400' 
+                            isSelected
+                              ? 'bg-indigo-500/10 text-indigo-400'
                               : 'text-steel-200 hover:bg-steel-800'
                           }`}
                         >

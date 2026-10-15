@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, X, Plus, Trash2, Edit2, Loader2, Save } from 'lucide-react';
-import { productionLineService, type ProductionLine } from '../../api/productionLineService';
+import { productionLineService } from '../../api/productionLineService';
 
 interface ProductionLineCatalogModalProps {
   isOpen: boolean;
@@ -13,36 +14,16 @@ interface ProductionLineCatalogModalProps {
 export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
-  const [lines, setLines] = useState<ProductionLine[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: lines = [], isLoading, refetch } = useQuery({queryKey: ['lines', 'catalog'], queryFn: () => productionLineService.list(false), enabled: isOpen});
   const [isPending, setIsPending] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const loadLines = async () => {
-    try {
-      setIsLoading(true);
-      const data = await productionLineService.list(false);
-      setLines(data);
-    } catch (error) {
-      console.error("Failed to load production lines", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      loadLines();
-      setEditingId(null);
-      setIsAdding(false);
-      setNewName('');
-    }
-  }, [isOpen]);
+  const loadLines = async () => { await refetch(); };
 
   const handleEdit = (id: number, name: string) => {
     setEditingId(id);
@@ -56,13 +37,9 @@ export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProp
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(sortedLines.length / ITEMS_PER_PAGE);
-  const paginatedLines = sortedLines.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginatedLines = sortedLines.slice((Math.min(currentPage, Math.max(1, totalPages)) - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
+
 
   const handleSaveEdit = async (id: number) => {
     if (!editName.trim()) return;

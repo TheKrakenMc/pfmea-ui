@@ -9,6 +9,9 @@ import type { SymbolType } from './flowchart.types';
 // ─── Header Metadata ─────────────────────────────────────────
 
 export interface FlowchartPdfHeader {
+  hpPartNumber?: string;
+  customerPartNumber?: string;
+  safetyCharacteristic?: string;
   /** Part number — e.g. "* VER PORTADA "P1674201002" **" */
   partNumber: string;
   /** Client name — e.g. "AUDI de México, S.A. de C.V." */
@@ -24,7 +27,6 @@ export interface FlowchartPdfHeader {
   /** Revision number — e.g. "4" */
   revision: string;
   /** Safety Characteristic from Customer */
-  safetyCharacteristic?: string;
 }
 
 // ─── Process Row ─────────────────────────────────────────────
@@ -50,6 +52,16 @@ export interface FlowchartPdfRow {
   norma: string;
   /** Equipment/machine name — e.g. "MONTACARGAS Y/O PATIN" */
   maquinaria: string;
+  /** Sub-step sequence (0 for master, 1, 2... for sub-step) */
+  subStep?: number;
+  /** Symbol type inherited from master step */
+  masterSymbolType?: SymbolType;
+  /** Product characteristics */
+  productCharacteristics?: string;
+  /** Process characteristics */
+  processCharacteristics?: string;
+  /** Target specification */
+  target?: string;
 }
 
 // ─── Summary (symbol counts) ────────────────────────────────

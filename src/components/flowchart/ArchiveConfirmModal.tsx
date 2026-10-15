@@ -5,21 +5,17 @@
 // ─────────────────────────────────────────────────────────────
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
   X,
   AlertTriangle,
-  FileText,
   Hash,
-  Calendar,
-  GitBranch,
   Loader2,
   ShieldAlert,
 } from 'lucide-react';
 import type { FlowchartRead } from '../../services/flowchartService';
-import { formatDate } from '../../utils/dateUtils';
 
 interface ArchiveConfirmModalProps {
   flowchart: FlowchartRead;
@@ -52,8 +48,8 @@ export function ArchiveConfirmModal({
         change_reason: reason.trim(),
         eco_number: eco.trim() || undefined,
       });
-    } catch (err: any) {
-      setError(err.message || t('archive.errors.archiveFailed'));
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "") || t('archive.errors.archiveFailed'));
     } finally {
       setSubmitting(false);
     }

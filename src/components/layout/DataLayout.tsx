@@ -8,18 +8,18 @@ interface DataLayoutProps {
   subtitle?: string;
   isLoading?: boolean;
   actionButton?: React.ReactNode;
-  
+
   // Search & Filter
   searchPlaceholder?: string;
   searchValue: string;
   onSearchChange: (val: string) => void;
   extraFilters?: React.ReactNode;
-  
+
   // View Toggle
   viewMode: 'grid' | 'table';
   onViewModeChange: (mode: 'grid' | 'table') => void;
   disableViewToggle?: boolean;
-  
+
   // Content
   isEmpty: boolean;
   emptyStateIcon?: React.ElementType;
@@ -49,7 +49,7 @@ export const DataLayout: React.FC<DataLayoutProps> = ({
   pagination
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -66,7 +66,7 @@ export const DataLayout: React.FC<DataLayoutProps> = ({
           </h1>
           {subtitle && <p className="text-steel-400 mt-2">{subtitle}</p>}
         </div>
-        
+
         {actionButton && (
           <div className="shrink-0">
             {actionButton}
@@ -91,7 +91,7 @@ export const DataLayout: React.FC<DataLayoutProps> = ({
             {extraFilters}
           </div>
         </div>
-        
+
         {!disableViewToggle && (
           <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
             <div className="flex bg-steel-950 border border-steel-700 rounded-lg p-1">

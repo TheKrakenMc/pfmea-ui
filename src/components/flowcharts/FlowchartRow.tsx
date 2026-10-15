@@ -1,13 +1,13 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { GripVertical } from 'lucide-react';
-import { FlowchartStep, SymbolType } from '../../types/flowchart.types';
+import type { FlowchartStep,SymbolType } from '../../types/flowchart.types';
 import { ProcessSymbol } from './ProcessSymbols';
 
 interface FlowchartRowProps {
   step: FlowchartStep;
   index: number;
-  onUpdate: (id: string, field: keyof FlowchartStep, value: any) => void;
+  onUpdate: (id: string, field: keyof FlowchartStep, value: FlowchartStep[keyof FlowchartStep]) => void;
   // Catálogos simulados para los selectores
   departments: { id: number; name: string }[];
   machineries: { id: number; machineryName: string }[];
@@ -99,8 +99,8 @@ export const FlowchartRow: React.FC<FlowchartRowProps> = ({
           {/* Machinery Selector (Multiple - simplified as a single select for MVP, or comma separated text) */}
           <td className="px-4 py-3 w-56">
             <select
-              value={step.machineryIds[0] || ''}
-              onChange={(e) => onUpdate(step.id, 'machineryIds', [Number(e.target.value)])}
+              value={step.machineryId || ''}
+              onChange={(e) => onUpdate(step.id, 'machineryId', Number(e.target.value))}
               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
               data-testid={`select-machinery-${step.id}`}
             >

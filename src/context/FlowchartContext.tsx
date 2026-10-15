@@ -1,3 +1,5 @@
+import {useAuth} from '../hooks/useAuth';
+import { draftKey, saveDraft } from '../services/drafts';
 // ─────────────────────────────────────────────────────────────
 //  Flowchart Context — Global State Management
 //  Uses useReducer for predictable state transitions.
@@ -5,11 +7,9 @@
 // ─────────────────────────────────────────────────────────────
 
 import {
-  createContext,
   useReducer,
   useCallback,
   type ReactNode,
-  type Dispatch,
 } from 'react';
 import type {
   FlowchartState,
@@ -24,13 +24,6 @@ function generateId(): string {
   return `step-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 }
 
-function recalculateSequences(steps: FlowchartStep[]): FlowchartStep[] {
-  return steps.map((step, index) => ({
-    ...step,
-    sequence: (index + 1) * 10,
-  }));
-}
-
 // ─── Reducer ─────────────────────────────────────────────────
 
 function flowchartReducer(
@@ -42,35 +35,159 @@ function flowchartReducer(
       const newStep: FlowchartStep = {
         id: generateId(),
         sequence: (state.steps.length + 1) * 10,
+        subStep: 0,
         operationId: '',
         operationName: '',
         machineryId: null,
         description: '',
         criticalFlag: 'none',
         symbolType: 'operation',
-        notes: '',
         responsibleDepartment: 'Producción',
+        productCharacteristics: '',
+        processCharacteristics: '',
+        target: '',
       };
       return {
         ...state,
-        steps: [...state.steps, newStep],
+        steps: recalculateSequences([...state.steps, newStep]),
+        isDirty: true,
+      };
+    }
+
+    case 'ADD_SUB_STEP': {
+      const { parentStepId } = action.payload;
+      const parentIndex = state.steps.findIndex((s) => s.id === parentStepId);
+      if (parentIndex === -1) return state;
+
+      const parent = state.steps[parentIndex];
+      // Find the end of this parent's sub-steps
+      let insertIndex = parentIndex + 1;
+      while (insertIndex < state.steps.length && state.steps[insertIndex].subStep > 0) {
+        insertIndex++;
+      }
+
+      const newSubStep: FlowchartStep = {
+        id: generateId(),
+        sequence: parent.sequence,
+        subStep: 1, // Will be computed by recalculateSequences
+        operationId: parent.operationId,
+        operationName: parent.operationName,
+        machineryId: parent.machineryId,
+        departmentId: parent.departmentId,
+        responsibleDepartment: parent.responsibleDepartment || 'Producción',
+        symbolType: parent.symbolType || 'operation',
+        criticalFlag: 'none',
+        description: '',
+        productCharacteristics: '',
+        processCharacteristics: '',
+        target: '',
+      };
+
+      const updated = [...state.steps];
+      updated.splice(insertIndex, 0, newSubStep);
+
+      return {
+        ...state,
+        steps: recalculateSequences(updated),
         isDirty: true,
       };
     }
 
     case 'UPDATE_STEP': {
       const { id, field, value } = action.payload;
+      const targetStep = state.steps.find((s) => s.id === id);
+      if (!targetStep) return state;
+
+      const isMaster = !targetStep.subStep || targetStep.subStep === 0;
+
+      // Fields to sync from master down to intermediate child operations
+      const syncFields = [
+        'operationId',
+        'operationName',
+        'machineryId',
+        'departmentId',
+        'responsibleDepartment',
+        'symbolType',
+      ];
+
+      let updatedSteps = state.steps.map((s) => {
+        if (s.id === id) {
+          return { ...s, [field]: value };
+        }
+        // If master updated a synchronized field, propagate down to its intermediate operations
+        if (
+          isMaster &&
+          syncFields.includes(field) &&
+          s.sequence === targetStep.sequence &&
+          s.subStep > 0
+        ) {
+          return { ...s, [field]: value };
+        }
+        return s;
+      });
+
+      // Handle criticalFlag bidirectional sync between master and intermediate sub-steps
+      if (field === 'criticalFlag') {
+        if (isMaster) {
+          // If master toggled to 'none', clear CC/SC on all its sub-steps
+          if (value === 'none') {
+            updatedSteps = updatedSteps.map((s) =>
+              s.sequence === targetStep.sequence && s.subStep > 0
+                ? { ...s, criticalFlag: 'none' }
+                : s
+            );
+          }
+        } else {
+          // An intermediate sub-step changed its criticalFlag
+          const hasAnyCriticalSub = updatedSteps.some(
+            (s) =>
+              s.sequence === targetStep.sequence &&
+              s.subStep > 0 &&
+              (s.criticalFlag === 'CC' || s.criticalFlag === 'SC')
+          );
+          // If any sub-step has CC or SC, master automatically gets '@'
+          updatedSteps = updatedSteps.map((s) => {
+            if (s.sequence === targetStep.sequence && (!s.subStep || s.subStep === 0)) {
+              if (hasAnyCriticalSub) {
+                return { ...s, criticalFlag: '@' };
+              } else if (s.criticalFlag === '@') {
+                return { ...s, criticalFlag: 'none' };
+              }
+            }
+            return s;
+          });
+        }
+      }
+
       return {
         ...state,
-        steps: state.steps.map((step) =>
-          step.id === id ? { ...step, [field]: value } : step
-        ),
+        steps: updatedSteps,
         isDirty: true,
       };
     }
 
     case 'DELETE_STEP': {
-      const filtered = state.steps.filter((s) => s.id !== action.payload.id);
+      const stepToDelete = state.steps.find((s) => s.id === action.payload.id);
+      if (!stepToDelete) return state;
+
+      let filtered: FlowchartStep[];
+      if (!stepToDelete.subStep || stepToDelete.subStep === 0) {
+        // Master step deleted: delete this master step and all its derived sub-steps
+        const masterIdx = state.steps.findIndex((s) => s.id === stepToDelete.id);
+        const idsToDelete = new Set<string>([stepToDelete.id]);
+        for (let i = masterIdx + 1; i < state.steps.length; i++) {
+          if (state.steps[i].subStep > 0) {
+            idsToDelete.add(state.steps[i].id);
+          } else {
+            break;
+          }
+        }
+        filtered = state.steps.filter((s) => !idsToDelete.has(s.id));
+      } else {
+        // Derived sub-step deleted: delete only this sub-step
+        filtered = state.steps.filter((s) => s.id !== stepToDelete.id);
+      }
+
       return {
         ...state,
         steps: recalculateSequences(filtered),
@@ -80,14 +197,91 @@ function flowchartReducer(
 
     case 'REORDER_STEPS': {
       const { sourceIndex, destinationIndex } = action.payload;
-      const reordered = Array.from(state.steps);
-      const [moved] = reordered.splice(sourceIndex, 1);
-      reordered.splice(destinationIndex, 0, moved);
-      return {
-        ...state,
-        steps: recalculateSequences(reordered),
-        isDirty: true,
-      };
+      if (sourceIndex === destinationIndex) return state;
+      if (
+        sourceIndex < 0 ||
+        sourceIndex >= state.steps.length ||
+        destinationIndex < 0 ||
+        destinationIndex >= state.steps.length
+      ) {
+        return state;
+      }
+
+      const movedStep = state.steps[sourceIndex];
+      const isMovedSubStep = Boolean(movedStep.subStep && movedStep.subStep > 0);
+      const groups = groupStepsByMaster(state.steps);
+
+      if (!isMovedSubStep) {
+        // ── 1. MASTER OPERATION DRAGGED ──
+        // Reordering is grouped based on master operations:
+        // Moving a master operation moves the ENTIRE group (master + all its derived sub-steps) as a unit.
+        const sourceGroupIdx = groups.findIndex((g) => g.master.id === movedStep.id);
+        if (sourceGroupIdx === -1) return state;
+
+        const targetStep = state.steps[destinationIndex];
+        const destGroupIdx = groups.findIndex(
+          (g) => g.master.id === targetStep.id || g.subSteps.some((s) => s.id === targetStep.id)
+        );
+        if (destGroupIdx === -1 || sourceGroupIdx === destGroupIdx) {
+          // Dropped within its own group or invalid: no change
+          return state;
+        }
+
+        const reorderedGroups = Array.from(groups);
+        const [movedGroup] = reorderedGroups.splice(sourceGroupIdx, 1);
+        reorderedGroups.splice(destGroupIdx, 0, movedGroup);
+
+        return {
+          ...state,
+          steps: flattenMasterGroups(reorderedGroups),
+          isDirty: true,
+        };
+      } else {
+        // ── 2. INTERMEDIATE / DERIVED OPERATION DRAGGED ──
+        // Sub-steps can be organized among themselves WITHOUT leaving the parent master operation.
+        const parentGroupIdx = groups.findIndex((g) =>
+          g.subSteps.some((s) => s.id === movedStep.id)
+        );
+        if (parentGroupIdx === -1) return state;
+
+        const parentGroup = groups[parentGroupIdx];
+        const sourceSubIdx = parentGroup.subSteps.findIndex((s) => s.id === movedStep.id);
+        if (sourceSubIdx === -1) return state;
+
+        // Calculate flat index range for this parent's sub-steps
+        let masterFlatIdx = 0;
+        for (let i = 0; i < parentGroupIdx; i++) {
+          masterFlatIdx += 1 + groups[i].subSteps.length;
+        }
+        const minSubFlatIdx = masterFlatIdx + 1;
+        const maxSubFlatIdx = masterFlatIdx + parentGroup.subSteps.length;
+
+        // Clamp destination to remain strictly within parent's sub-steps
+        const clampedDestFlatIdx = Math.max(
+          minSubFlatIdx,
+          Math.min(maxSubFlatIdx, destinationIndex)
+        );
+        const destSubIdx = clampedDestFlatIdx - minSubFlatIdx;
+
+        if (sourceSubIdx === destSubIdx) {
+          return state;
+        }
+
+        const updatedSubSteps = Array.from(parentGroup.subSteps);
+        const [movedSub] = updatedSubSteps.splice(sourceSubIdx, 1);
+        updatedSubSteps.splice(destSubIdx, 0, movedSub);
+
+        groups[parentGroupIdx] = {
+          ...parentGroup,
+          subSteps: updatedSubSteps,
+        };
+
+        return {
+          ...state,
+          steps: flattenMasterGroups(groups),
+          isDirty: true,
+        };
+      }
     }
 
     case 'DUPLICATE_STEP': {
@@ -153,41 +347,23 @@ function flowchartReducer(
 
 // ─── Context ─────────────────────────────────────────────────
 
-interface FlowchartContextValue {
-  state: FlowchartState;
-  dispatch: Dispatch<FlowchartAction>;
-  flowchartId: number | null;
-  addStep: () => void;
-  deleteStep: (id: string) => void;
-  duplicateStep: (id: string) => void;
-  reorderSteps: (sourceIndex: number, destinationIndex: number) => void;
-  updateStep: (id: string, field: keyof FlowchartStep, value: FlowchartStep[keyof FlowchartStep]) => void;
-  saveLocally: () => void;
-}
-
-export const FlowchartContext = createContext<FlowchartContextValue | null>(null);
-
+import {FlowchartContext} from './flowchartState';
+import {groupStepsByMaster,recalculateSequences,flattenMasterGroups} from './flowchartGroups';
 // ─── Provider ────────────────────────────────────────────────
 
-const STORAGE_KEY = 'pfmea-flowchart-state';
-
-function loadPersistedState(): FlowchartState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as FlowchartState;
-      return { ...parsed, isDirty: false, isSaving: false };
-    }
-  } catch {
-    // Corrupted data — fall back to seed
-  }
-  return INITIAL_STATE;
-}
-
 export function FlowchartProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(flowchartReducer, null, loadPersistedState);
+  const { user } = useAuth();
+  const [state, dispatch] = useReducer((current,action)=>{
+    const readOnly=!user || user.role_name==='Viewer' || ['approved','archived'].includes(current.header.diagramStatus);
+    if(readOnly && !['LOAD_STATE','SET_SAVING','MARK_SAVED'].includes(action.type))return current;
+    return flowchartReducer(current,action);
+  }, INITIAL_STATE);
 
   const addStep = useCallback(() => dispatch({ type: 'ADD_STEP' }), []);
+  const addSubStep = useCallback(
+    (parentStepId: string) => dispatch({ type: 'ADD_SUB_STEP', payload: { parentStepId } }),
+    []
+  );
   const deleteStep = useCallback(
     (id: string) => dispatch({ type: 'DELETE_STEP', payload: { id } }),
     []
@@ -203,17 +379,17 @@ export function FlowchartProvider({ children }: { children: ReactNode }) {
   );
   const updateStep = useCallback(
     (id: string, field: keyof FlowchartStep, value: FlowchartStep[keyof FlowchartStep]) =>
-      dispatch({ type: 'UPDATE_STEP', payload: { id, field, value: value as string } }),
+      dispatch({ type: 'UPDATE_STEP', payload: { id, field, value: value as unknown } }),
     []
   );
 
   const saveLocally = useCallback(() => {
     try {
-      localStorage.setItem(`flowchart_${state.flowchartId}`, JSON.stringify(state));
+      if (user && state.flowchartId) saveDraft(draftKey(user.id,user.plant_id,"flowchart",state.flowchartId), state.lockVersion || 1, state);
     } catch (err) {
       console.error('Failed to save to localStorage:', err);
     }
-  }, [state]);
+  }, [state, user]);
 
   return (
     <FlowchartContext.Provider
@@ -222,6 +398,7 @@ export function FlowchartProvider({ children }: { children: ReactNode }) {
         dispatch,
         flowchartId: state.flowchartId,
         addStep,
+        addSubStep,
         deleteStep,
         duplicateStep,
         reorderSteps,

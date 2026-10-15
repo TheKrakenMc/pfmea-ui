@@ -1,3 +1,4 @@
+import {FlowchartProvider} from './context/FlowchartContext';
 import { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AppRoutes } from './routes/AppRoutes';
@@ -10,7 +11,7 @@ function App() {
   useEffect(() => {
     document.title = t('app.documentTitle');
     document.documentElement.lang = i18n.language;
-    
+
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
       metaDescription.setAttribute('content', t('app.documentDescription'));
@@ -20,7 +21,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <FlowchartProvider><AppRoutes /></FlowchartProvider>
       </AuthProvider>
     </Router>
   );

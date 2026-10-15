@@ -23,23 +23,24 @@ export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { canEditProduct, canDeleteProduct, isLoading: rbacLoading } = useRBAC();
+  const { role, canEditProduct, canDeleteProduct, isLoading: rbacLoading } = useRBAC();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<TabType>('master');
-  
+
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
 
-  const isReleased = product?.status === 'Released';
+  const isReleased = ['Released','Archived'].includes(product?.status || '');
+  const canManageProduct=role==='Administrator' || role==='PFMEA Owner';
   const effectiveCanEdit = canEditProduct && !isReleased;
 
   // Form State
@@ -70,11 +71,11 @@ export const ProductDetailPage: React.FC = () => {
           listTechnologies(),
           listCustomers()
         ]);
-        
+
         setProduct(prodData);
         setTechnologies(techData);
         setCustomers(custData);
-        
+
         setFormData({
           part_number: prodData.part_number || '',
           customer_part_number: prodData.customer_part_number || '',
@@ -112,18 +113,18 @@ export const ProductDetailPage: React.FC = () => {
 
     try {
       setIsSaving(true);
-      
+
       let finalImageUrl = formData.image_url;
       if (selectedFile) {
         const uploadRes = await uploadImage(selectedFile);
         finalImageUrl = uploadRes.filename;
       }
-      
+
       const payload = {
         ...formData,
         image_url: finalImageUrl,
       };
-      
+
       const updatedProduct = await updateProduct(Number(id), payload);
       setProduct(updatedProduct);
       setFormData(prev => ({ ...prev, image_url: finalImageUrl }));
@@ -181,7 +182,7 @@ export const ProductDetailPage: React.FC = () => {
             {product.part_number}
           </h1>
         </div>
-        
+
         {effectiveCanEdit && (
           <button
             onClick={handleSave}
@@ -192,7 +193,7 @@ export const ProductDetailPage: React.FC = () => {
             {t('products.actions.save')}
           </button>
         )}
-        
+
         {/* Status Badge & Actions */}
         <div className="flex items-center gap-2 border-l border-steel-800 pl-4 ml-2">
           <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${
@@ -205,7 +206,7 @@ export const ProductDetailPage: React.FC = () => {
             {t(`productVersioning.status${product.status?.replace(' ', '')}`, product.status || 'Draft')}
             <span className="ml-1 opacity-75">V{product.version}</span>
           </div>
-          
+
           <button
             onClick={() => setIsHistoryModalOpen(true)}
             title={t('productVersioning.historyTitle')}
@@ -213,14 +214,14 @@ export const ProductDetailPage: React.FC = () => {
           >
             <History size={18} />
           </button>
-          
-          {product.status === 'Draft' && effectiveCanEdit && (
+
+          {['Draft','active'].includes(product.status || '') && canManageProduct && (
             <button
               onClick={async () => {
                 try {
                   await axiosClient.put(`/products/${id}/status`, { status: 'In Review' });
                   window.location.reload();
-                } catch (e) { toast.error("Error updating status"); }
+                } catch { toast.error("Error updating status"); }
               }}
               title={t('productVersioning.sendToReview')}
               className="p-2 rounded-lg bg-steel-900 border border-steel-800 text-amber-400 hover:bg-amber-500/10 transition-colors"
@@ -229,13 +230,13 @@ export const ProductDetailPage: React.FC = () => {
             </button>
           )}
 
-          {product.status === 'In Review' && canEditProduct && (
+          {product.status === 'In Review' && canManageProduct && (
             <button
               onClick={async () => {
                 try {
                   await axiosClient.put(`/products/${id}/status`, { status: 'Released' });
                   window.location.reload();
-                } catch (e) { toast.error("Error updating status"); }
+                } catch { toast.error("Error updating status"); }
               }}
               title={t('productVersioning.release')}
               className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-colors flex items-center gap-2 text-sm font-medium"
@@ -245,7 +246,7 @@ export const ProductDetailPage: React.FC = () => {
             </button>
           )}
 
-          {isReleased && canEditProduct && (
+          {isReleased && canManageProduct && (
             <button
               onClick={() => setIsRevisionModalOpen(true)}
               className="p-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-colors flex items-center gap-2 text-sm font-medium"
@@ -257,6 +258,7 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {product.needs_review && <p role="status" className="mx-6 p-3 rounded-lg bg-amber-100 dark:bg-amber-950">Documento histórico señalado para revisión. Conserva su aprobación; inicia una nueva revisión para modificarlo.</p>}
       {!effectiveCanEdit && (
         <div className="mb-6 p-4 rounded-xl bg-review-500/10 border border-review-500/20 flex items-center gap-3">
           <ShieldCheck className="text-review-400" size={24} />
@@ -320,7 +322,7 @@ export const ProductDetailPage: React.FC = () => {
                 className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-mono disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-steel-400">{t('products.form.customerPartNumber')}</label>
               <input
@@ -342,7 +344,7 @@ export const ProductDetailPage: React.FC = () => {
                 className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-medium disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-steel-400">{t('product.drawing', 'Dibujo')}</label>
               <input
@@ -402,16 +404,7 @@ export const ProductDetailPage: React.FC = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-steel-400">{t('products.form.status')}</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-                <option value="archived">Archivado</option>
-              </select>
+              <input value={formData.status} readOnly aria-label={t('products.form.status')} className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100" />
             </div>
 
             <div className="space-y-2 md:col-span-2">
@@ -429,9 +422,9 @@ export const ProductDetailPage: React.FC = () => {
                 <Tag size={18} className="text-forge-400" />
                 {t('products.detail.technologies', 'Tecnologías')}
               </h3>
-              
+
               <div className="flex flex-wrap gap-3">
-                {canEditProduct ? (
+                {effectiveCanEdit ? (
                   <TechnologyMultiSelect
                     technologies={technologies}
                     selectedIds={formData.technology_ids}
@@ -472,7 +465,7 @@ export const ProductDetailPage: React.FC = () => {
               <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
                 {t('products.detail.specsCards.dimensions', 'DIMENSIONES')}
               </h4>
-              {canEditProduct ? (
+              {effectiveCanEdit ? (
                 <input
                   type="text"
                   placeholder="Ej. 1540 x 280 x 62 mm"
@@ -495,7 +488,7 @@ export const ProductDetailPage: React.FC = () => {
               <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
                 {t('products.detail.specsCards.weight', 'PESO (KG)')}
               </h4>
-              {canEditProduct ? (
+              {effectiveCanEdit ? (
                 <div className="relative w-full max-w-[140px]">
                   <input
                     type="number"
@@ -522,7 +515,7 @@ export const ProductDetailPage: React.FC = () => {
               <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
                 {t('products.detail.specsCards.cycleTime', 'TIEMPO CICLO')}
               </h4>
-              {canEditProduct ? (
+              {effectiveCanEdit ? (
                 <div className="relative w-full max-w-[140px]">
                   <input
                     type="number"
@@ -549,7 +542,7 @@ export const ProductDetailPage: React.FC = () => {
               <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
                 {t('products.detail.specsCards.ratePerHour', 'RATE / HORA')}
               </h4>
-              {canEditProduct ? (
+              {effectiveCanEdit ? (
                 <div className="relative w-full max-w-[160px]">
                   <input
                     type="number"
@@ -578,8 +571,8 @@ export const ProductDetailPage: React.FC = () => {
             exit={{ opacity: 0, y: -10 }}
             className="glass-card p-6 w-full"
           >
-            <ProductParameterManager 
-              productId={Number(id)} 
+            <ProductParameterManager readOnly={!effectiveCanEdit}
+              productId={Number(id)}
               technologies={technologies.filter(t => formData.technology_ids.includes(t.id))}
             />
           </motion.div>
@@ -617,7 +610,7 @@ export const ProductDetailPage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {canDeleteProduct && (
+      {canDeleteProduct && effectiveCanEdit && (
         <div className="mt-8 flex justify-end">
           <button
             onClick={() => setShowDeleteModal(true)}

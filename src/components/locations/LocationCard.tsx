@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Edit2, Trash2, Building } from 'lucide-react';
+import { Trash2, Building } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ManufacturingLocation } from '../../services/locationService';
 

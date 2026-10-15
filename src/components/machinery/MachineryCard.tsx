@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Factory, Edit2, Trash2, MapPin } from 'lucide-react';
+import { Factory, Trash2, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Machinery } from '../../types/machinery.types';
 import type { Plant } from '../../services/plantService';

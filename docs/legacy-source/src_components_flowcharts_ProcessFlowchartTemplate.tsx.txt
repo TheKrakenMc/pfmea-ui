@@ -112,12 +112,6 @@ const RenderSymbol: React.FC<{ type: SymbolType | null }> = ({ type }) => {
 
 // ─── Summary Symbol Icon (for the summary table) ────────────
 
-const SummarySymbolIcon: React.FC<{ type: SymbolType; label: string }> = ({ type, label }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-    <ProcessSymbol symbolType={type} size={14} />
-    <span style={{ fontSize: '7px' }}>{label}</span>
-  </div>
-);
 
 // ─── Main Template Component ─────────────────────────────────
 
@@ -258,8 +252,12 @@ export const ProcessFlowchartTemplate: React.FC<ProcessFlowchartTemplateProps> =
                   backgroundColor: idx % 2 === 0 ? '#fff' : LIGHT_BG,
                 }}
               >
-                <td style={{ ...dataCell, fontWeight: 'bold', fontSize: '8px' }}>{row.stepNumber}</td>
-                <td style={{ ...dataCellLeft, fontSize: '8px' }}>{row.description}</td>
+                <td style={{ ...dataCell, fontWeight: 'bold', fontSize: '8px' }}>
+                  {row.subStep && row.subStep > 0 ? '' : row.stepNumber}
+                </td>
+                <td style={{ ...dataCellLeft, fontSize: '8px' }}>
+                  {row.subStep && row.subStep > 0 ? '' : row.description}
+                </td>
                 <td style={{ ...dataCellLeft, fontSize: '8px' }}>{row.location}</td>
                 <td style={dataCell}>
                   {row.hic && (

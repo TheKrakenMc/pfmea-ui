@@ -134,3 +134,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Reproducible synthetic audit outputs; summaries are kept in docs/audit-results
+audit-artifacts/
+audit-build.txt
+audit-types.txt
+audit-lint.json

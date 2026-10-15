@@ -1,36 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import { ActionConfirmationTray } from '../../components/pfmea/ActionConfirmationTray';
+import {useAuth} from '../../hooks/useAuth';
+import { draftKey, loadDraft, saveDraft, discardDraft } from '../../services/drafts';
+import { getErrorMessage } from '../../utils/errors';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, AlertTriangle, FileText, CheckSquare, History } from 'lucide-react';
-import { pfmeaService, type PfmeaHeaderUpdate, type WorksheetRowUpdate } from '../../api/pfmeaService';
+import { ArrowLeft, Loader2, AlertTriangle, AlertCircle, Save, CheckCircle2 } from 'lucide-react';
+import { pfmeaService, type PfmeaHeaderUpdate, type WorksheetRow } from '../../api/pfmeaService';
 import { getFlowchartById } from '../../services/flowchartService';
-import { GlobalHeader } from '../../components/pfmea/GlobalHeader';
+import { PFMEAMasterHeader } from '../../components/pfmea/PFMEAMasterHeader';
 import { PFMEAWorksheetTable } from '../../components/pfmea/PFMEAWorksheetTable';
+import { CorporateWorksheetTable } from '../../components/pfmea/CorporateWorksheetTable';
+import { FormatSelectorToolbar, type FmeaLayoutType } from '../../components/pfmea/FormatSelectorToolbar';
 import { MOCView } from '../../components/pfmea/MOCView';
 import { MyTasksTray } from '../../components/pfmea/MyTasksTray';
-import { ExportPfmeaButton } from '../../components/pfmea/ExportPfmeaButton';
 import { toast } from 'sonner';
+
+const normalizeVal = (val: unknown) => (val === undefined || val === null ? '' : String(val).trim());
+const normalizeNum = (val: unknown) => (val === undefined || val === null || val === '' ? null : Number(val));
+
+const areRowsEqual = (rowA: WorksheetRow, rowB: WorksheetRow): boolean => {
+  if (normalizeNum(rowA.sequence_order) !== normalizeNum(rowB.sequence_order)) return false;
+  if (normalizeVal(rowA.product_characteristic) !== normalizeVal(rowB.product_characteristic)) return false;
+  if (normalizeVal(rowA.process_characteristic) !== normalizeVal(rowB.process_characteristic)) return false;
+  if (normalizeVal(rowA.station_operation) !== normalizeVal(rowB.station_operation)) return false;
+  if (normalizeNum(rowA.flowchart_step_id) !== normalizeNum(rowB.flowchart_step_id)) return false;
+  if (normalizeVal(rowA.function_process_step) !== normalizeVal(rowB.function_process_step)) return false;
+  if (normalizeVal(rowA.function_process_item_plant) !== normalizeVal(rowB.function_process_item_plant)) return false;
+  if (normalizeVal(rowA.function_process_item_customer) !== normalizeVal(rowB.function_process_item_customer)) return false;
+  if (normalizeVal(rowA.function_process_item_end_user) !== normalizeVal(rowB.function_process_item_end_user)) return false;
+  if (normalizeVal(rowA.function_work_element) !== normalizeVal(rowB.function_work_element)) return false;
+  if (normalizeVal(rowA.work_element_process) !== normalizeVal(rowB.work_element_process)) return false;
+  if (normalizeVal(rowA.failure_mode) !== normalizeVal(rowB.failure_mode)) return false;
+  if (normalizeVal(rowA.failure_effect_plant) !== normalizeVal(rowB.failure_effect_plant)) return false;
+  if (normalizeVal(rowA.failure_effect_customer) !== normalizeVal(rowB.failure_effect_customer)) return false;
+  if (normalizeVal(rowA.failure_effect_end_user) !== normalizeVal(rowB.failure_effect_end_user)) return false;
+  if (normalizeNum(rowA.severity) !== normalizeNum(rowB.severity)) return false;
+  if (normalizeVal(rowA.failure_cause) !== normalizeVal(rowB.failure_cause)) return false;
+  if (normalizeNum(rowA.occurrence) !== normalizeNum(rowB.occurrence)) return false;
+  if (normalizeVal(rowA.prevention_controls) !== normalizeVal(rowB.prevention_controls)) return false;
+  if (normalizeVal(rowA.detection_controls) !== normalizeVal(rowB.detection_controls)) return false;
+  if (normalizeNum(rowA.detection) !== normalizeNum(rowB.detection)) return false;
+  if (normalizeVal(rowA.action_priority) !== normalizeVal(rowB.action_priority)) return false;
+  if (normalizeVal(rowA.special_characteristics) !== normalizeVal(rowB.special_characteristics)) return false;
+  if (normalizeVal(rowA.optimization_prevention_action) !== normalizeVal(rowB.optimization_prevention_action)) return false;
+  if (normalizeVal(rowA.optimization_detection_action) !== normalizeVal(rowB.optimization_detection_action)) return false;
+  if (normalizeNum(rowA.responsible_person_id) !== normalizeNum(rowB.responsible_person_id)) return false;
+  if (normalizeVal(rowA.responsible_person_name) !== normalizeVal(rowB.responsible_person_name)) return false;
+  if (normalizeVal(rowA.target_completion_date) !== normalizeVal(rowB.target_completion_date)) return false;
+  if (normalizeVal(rowA.action_status) !== normalizeVal(rowB.action_status)) return false;
+  if (normalizeVal(rowA.actions_taken) !== normalizeVal(rowB.actions_taken)) return false;
+  if (normalizeVal(rowA.completion_date) !== normalizeVal(rowB.completion_date)) return false;
+  if (normalizeNum(rowA.new_severity) !== normalizeNum(rowB.new_severity)) return false;
+  if (normalizeNum(rowA.new_occurrence) !== normalizeNum(rowB.new_occurrence)) return false;
+  if (normalizeNum(rowA.new_detection) !== normalizeNum(rowB.new_detection)) return false;
+  if (normalizeVal(rowA.new_action_priority) !== normalizeVal(rowB.new_action_priority)) return false;
+  return true;
+};
+
+const hasWorksheetChanges = (currentRows: WorksheetRow[], originalRows: WorksheetRow[]): boolean => {
+  if (currentRows.length !== originalRows.length) return true;
+  for (let i = 0; i < currentRows.length; i++) {
+    const cur = currentRows[i];
+    if (cur.id < 0) return true;
+    const orig = originalRows[i];
+    if (!orig || !areRowsEqual(cur, orig)) return true;
+  }
+  return false;
+};
 
 export const PFMEAEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  
-  const [activeTab, setActiveTab] = useState<'tasks' | 'worksheet' | 'moc'>('worksheet');
+
+  const [activeTab] = useState<'tasks' | 'worksheet' | 'moc'>('worksheet');
+  const [currentLayout, setCurrentLayout] = useState<FmeaLayoutType>('AIAG_APG');
   const [localHeader, setLocalHeader] = useState<PfmeaHeaderUpdate | null>(null);
   const [isHeaderDirty, setIsHeaderDirty] = useState(false);
+  const [editedRows, setLocalRows] = useState<WorksheetRow[] | null>(null);
+  const [isWorksheetDirty, setIsWorksheetDirty] = useState(false);
 
   const pfmeaId = id ? Number(id) : null;
+  const { user } = useAuth();
+  const draftStorageKey = user && pfmeaId ? draftKey(user.id,user.plant_id,"pfmea",pfmeaId) : null;
+  const [pendingDraft, setPendingDraft] = useState(() => !!(draftStorageKey && loadDraft(draftStorageKey)));
+  const [draftRevision, setDraftRevision] = useState<number | null>(null);
+  const [savingAtomic, setSavingAtomic] = useState(false);
 
   // Queries
   const { data: pfmeaDetail, isLoading: isLoadingDetail, error } = useQuery({
     queryKey: ['pfmea', pfmeaId],
     queryFn: () => pfmeaService.getAnalysis(pfmeaId!),
     enabled: !!pfmeaId,
+    refetchOnWindowFocus: false,
   });
+
+  const localRows = React.useMemo(() => editedRows ?? pfmeaDetail?.worksheet_rows ?? [], [editedRows,pfmeaDetail?.worksheet_rows]);
 
   const { data: flowchartDetail } = useQuery({
     queryKey: ['flowchart', pfmeaDetail?.flowchart_id],
@@ -49,44 +118,69 @@ export const PFMEAEditorPage: React.FC = () => {
     enabled: !!pfmeaId && activeTab === 'moc',
   });
 
-  // Mutations
-  const updateHeaderMutation = useMutation({
-    mutationFn: (data: PfmeaHeaderUpdate) => pfmeaService.updateAnalysis(pfmeaId!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pfmea', pfmeaId] });
-      toast.success(t('pfmea.editor.success.headerUpdated'));
-    },
-    onError: () => toast.error(t('pfmea.editor.error.headerUpdate')),
-  });
-
-  const bulkUpdateMutation = useMutation({
-    mutationFn: (data: WorksheetRowUpdate[]) => pfmeaService.bulkUpdateWorksheet(pfmeaId!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pfmea', pfmeaId] });
-      toast.success(t('pfmea.editor.success.worksheetSaved'));
-    },
-    onError: () => toast.error(t('pfmea.editor.error.worksheetSave')),
-  });
-
-  const transitionStatusMutation = useMutation({
-    mutationFn: (newStatus: string) => pfmeaService.transitionStatus(pfmeaId!, newStatus),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pfmea', pfmeaId] });
-      toast.success(t('pfmea.editor.success.statusChanged', 'Estado actualizado'));
-    },
-    onError: (error: any) => toast.error(error.response?.data?.detail || t('pfmea.editor.error.statusChange', 'Error al cambiar el estado')),
-  });
-
-  const handleUpdateHeader = (data: PfmeaHeaderUpdate) => {
-    updateHeaderMutation.mutate(data);
-  };
-
   const handleHeaderLocalChange = React.useCallback((data: PfmeaHeaderUpdate, dirty: boolean) => {
     setLocalHeader(data);
     setIsHeaderDirty(dirty);
-  }, []);
+    if (dirty) setDraftRevision(previous => previous || pfmeaDetail?.lock_version || null);
+  }, [pfmeaDetail?.lock_version]);
 
-  const isReadOnly = pfmeaDetail ? (pfmeaDetail.moc_status === 'Approved' || pfmeaDetail.moc_status === 'Archived') : false;
+  const isReadOnly = !['Administrator','PFMEA Owner','Team Member'].includes(user?.role_name || '') || !!pfmeaDetail?.team_members.some(m=>m.user_id===Number(user?.id)&&m.role_in_team==='Viewer'&&user?.role_name!=='Administrator') || !!pfmeaDetail && ['Approved','Archived'].includes(pfmeaDetail.moc_status);
+
+  const canManage=user?.role_name==='Administrator' || user?.role_name==='PFMEA Owner' && (pfmeaDetail?.owner_id===Number(user.id) || !!pfmeaDetail?.team_members.some(m=>m.user_id===Number(user.id)&&m.role_in_team==='PFMEA Owner'));
+
+  const mergedHeader = React.useMemo(() => {
+    if (!pfmeaDetail) return null;
+    return { ...pfmeaDetail, ...(localHeader || {}) };
+  }, [pfmeaDetail, localHeader]);
+
+  useEffect(() => {
+    if (!draftStorageKey || !pfmeaDetail || (!isWorksheetDirty && !isHeaderDirty)) return;
+    const timer = setTimeout(() => { if (!saveDraft(draftStorageKey, draftRevision || pfmeaDetail.lock_version, { rows: localRows, header: isHeaderDirty ? localHeader : null })) toast.error('No se pudo guardar el borrador local. Guarda el documento en el servidor.'); }, 1000);
+    return () => clearTimeout(timer);
+  }, [draftStorageKey, pfmeaDetail, isWorksheetDirty, isHeaderDirty, localRows, localHeader, draftRevision]);
+
+  const handleRowsChange = useCallback((rows: WorksheetRow[]) => {
+    setLocalRows(rows);
+    setIsWorksheetDirty(true);
+    setDraftRevision(previous => previous || pfmeaDetail?.lock_version || null);
+  }, [pfmeaDetail?.lock_version]);
+
+
+  const worksheetHasChanges = isWorksheetDirty || hasWorksheetChanges(localRows, pfmeaDetail?.worksheet_rows || []);
+  const hasUnsavedChanges = isHeaderDirty || worksheetHasChanges;
+
+  const handleSaveAllGlobal = useCallback(async (rowsToSave = localRows) => {
+    try {
+      if (!pfmeaDetail || !pfmeaId) return;
+      setSavingAtomic(true);
+      const retained = new Set(rowsToSave.filter(r => r.id > 0).map(r => r.id));
+      const deleted = pfmeaDetail.worksheet_rows.filter(r => !retained.has(r.id)).map(r => r.id);
+      const originals=new Map(pfmeaDetail.worksheet_rows.map(row=>[row.id,row]));
+      const changedRows=rowsToSave.filter(row=>row.id<0 || !originals.has(row.id) || !areRowsEqual(row,originals.get(row.id)!));
+      const saved = await pfmeaService.saveDocument(pfmeaId, {
+        expected_version: draftRevision || pfmeaDetail.lock_version,
+        header: isHeaderDirty && localHeader ? localHeader : undefined,
+        rows: changedRows,
+        deleted_row_ids: deleted,
+        new_status: isHeaderDirty && localHeader?.moc_status !== pfmeaDetail.moc_status ? localHeader?.moc_status : undefined,
+      });
+      setIsHeaderDirty(false);
+      setIsWorksheetDirty(false);
+      setLocalHeader(null);
+      setLocalRows(null);
+      queryClient.setQueryData(['pfmea', pfmeaId], saved);
+      if (draftStorageKey) discardDraft(draftStorageKey);
+      setPendingDraft(false);
+      setDraftRevision(null);
+      toast.success('Documento guardado en el servidor');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'No se guardó el documento. Tu borrador se conserva.'));
+    } finally {
+      setSavingAtomic(false);
+    }
+  }, [localRows, isHeaderDirty, localHeader, pfmeaDetail, pfmeaId, draftRevision, draftStorageKey, queryClient]);
+
+  const isSaving = savingAtomic;
 
   if (!pfmeaId || isNaN(pfmeaId)) {
     return (
@@ -121,7 +215,7 @@ export const PFMEAEditorPage: React.FC = () => {
 
   if (error || !pfmeaDetail) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -148,124 +242,79 @@ export const PFMEAEditorPage: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full min-h-0 overflow-hidden"
+      className="flex flex-col w-full min-h-full pb-36"
     >
-      {/* Top Bar Navigation */}
-      <div className="bg-steel-950/80 backdrop-blur-md border-b border-steel-800 px-6 py-3 flex items-center justify-between z-40">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/pfmea')}
-            className="p-2 text-steel-400 hover:text-white hover:bg-steel-800 rounded-lg transition-colors group cursor-pointer"
-            title="Volver"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          </button>
-          <div className="h-6 w-px bg-steel-800"></div>
-          <div className="flex flex-col">
-            <span className="text-xs text-steel-400 uppercase font-semibold tracking-wider">{t('pfmea.editor.docId')}</span>
-            <span className="font-mono font-medium">{pfmeaDetail.pfmea_id_number || `#${pfmeaId}`}</span>
-          </div>
-          <div className="h-6 w-px bg-steel-800"></div>
-          <span className="text-steel-300 text-sm font-medium truncate max-w-xs">{pfmeaDetail.project_name}</span>
-          {!isReadOnly && isHeaderDirty && (
-            <>
-              <div className="h-6 w-px bg-steel-800"></div>
-              <div className="flex items-center gap-2 bg-amber-500 text-amber-950 border border-amber-600 px-2 py-0.5 rounded shadow-sm">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-950 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-900"></span>
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-amber-950 leading-none">
-                    {t('common.localDraft', 'Borrador Local')}
-                  </span>
-                  <span className="text-[7px] text-amber-900/80 leading-none mt-0.5 font-medium">
-                    {t('common.localDraftDescShort', 'Guardado en navegador')}
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-           <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500 text-amber-950 border-amber-600 shadow-sm">
-             {t('pfmea.editor.inEdition')}
-           </span>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col p-6 gap-6 overflow-hidden">
-        {/* Tabs */}
-        <div className="flex items-center gap-2 border-b border-steel-700/50 pb-px shrink-0">
-          <button
-            onClick={() => setActiveTab('worksheet')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 cursor-pointer ${
-              activeTab === 'worksheet' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-            }`}
-          >
-            <FileText size={16} />
-            {t('pfmea.editor.tabs.worksheet')}
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 cursor-pointer ${
-              activeTab === 'tasks' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-            }`}
-          >
-            <CheckSquare size={16} />
-            {t('pfmea.editor.tabs.myTasks')}
-            {tasks && tasks.length > 0 && (
-              <span className="bg-forge-500/20 text-forge-400 text-[10px] px-1.5 py-0.5 rounded-full ml-1">
-                {tasks.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('moc')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 cursor-pointer ${
-              activeTab === 'moc' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-            }`}
-          >
-            <History size={16} />
-            {t('pfmea.editor.tabs.moc')}
-          </button>
-        </div>
-
+      <div className="flex-1 flex flex-col p-6 pt-4 gap-5">
         {/* Main Content Area */}
-        <div className={`flex-1 ${activeTab === 'worksheet' ? 'flex flex-col min-h-0 pr-2' : 'overflow-y-auto custom-scrollbar pr-2 pb-10'}`}>
+        <div className={`flex-1 ${activeTab === 'worksheet' ? 'flex flex-col pb-16' : 'overflow-y-auto custom-scrollbar pr-2 pb-16'}`}>
           {activeTab === 'worksheet' && pfmeaDetail && (
-            <div className="flex flex-col gap-4 flex-1 min-h-0 animate-fade-in pb-2">
+            <div className="flex flex-col gap-5 flex-1 animate-fade-in pb-8">
+              {/* Consolidated Unified Header & Multi-layout Toolbar */}
+              <FormatSelectorToolbar
+                currentLayout={currentLayout}
+                onChangeLayout={setCurrentLayout}
+                flowchartId={pfmeaDetail.flowchart_id}
+                pfmeaId={pfmeaId!}
+                docId={pfmeaDetail.pfmea_id_number || `#${pfmeaId}`}
+                projectName={pfmeaDetail.project_name}
+                isReadOnly={isReadOnly}
+                isHeaderDirty={hasUnsavedChanges}
+                onBack={() => navigate('/pfmea')}
+                header={mergedHeader!}
+                rows={localRows}
+                productData={flowchartDetail?.product}
+              />
+
               <div className="shrink-0">
-                <GlobalHeader 
-                  header={pfmeaDetail} 
-                  onUpdate={handleUpdateHeader}
+          {pendingDraft && draftStorageKey && <div role="status" className="p-3 bg-amber-100 dark:bg-amber-950 rounded-lg">
+            Borrador local disponible.
+            <button className="mx-3 underline" onClick={() => { const draft=loadDraft<{rows:WorksheetRow[];header:PfmeaHeaderUpdate|null}>(draftStorageKey); if(draft){setLocalRows(draft.data.rows);setLocalHeader(draft.data.header);setDraftRevision(draft.expectedVersion);setIsWorksheetDirty(true);setIsHeaderDirty(!!draft.data.header);}setPendingDraft(false); }}>Recuperar</button>
+            <button className="underline" onClick={() => {discardDraft(draftStorageKey);setPendingDraft(false);}}>Descartar</button>
+          </div>}
+
+          {pfmeaDetail.needs_review && <p role="status" className="rounded-lg bg-amber-100 dark:bg-amber-950 p-3">Este documento histórico requiere revisión de sus acciones y evidencias antes de una nueva aprobación.</p>}
+          {!isReadOnly && canManage && <ActionConfirmationTray id={pfmeaId} version={pfmeaDetail.lock_version} rows={localRows} dirty={hasUnsavedChanges} onConfirmed={()=>queryClient.invalidateQueries({queryKey:['pfmea',pfmeaId]})} />}
+
+                <PFMEAMasterHeader
+                  header={mergedHeader!}
+                  currentLayout={currentLayout}
                   onLocalChange={handleHeaderLocalChange}
-                  isLoading={updateHeaderMutation.isPending} 
+                  readOnly={isReadOnly}
+                  isLoading={isSaving}
+                  rows={localRows}
+                  flowchartSteps={flowchartDetail?.steps || []}
                 />
               </div>
-              <PFMEAWorksheetTable 
-                pfmeaId={pfmeaId!}
-                partNumber={pfmeaDetail?.part_number || ''}
-                flowchartSteps={flowchartDetail?.steps || []}
-                rows={pfmeaDetail.worksheet_rows || []} 
-                header={{ ...pfmeaDetail, ...(localHeader || {}) } as any}
-                productData={flowchartDetail?.product}
-                isHeaderDirty={isHeaderDirty}
-                onSaveAll={(rows) => {
-                  if (isHeaderDirty && localHeader) {
-                    if (localHeader.moc_status && localHeader.moc_status !== pfmeaDetail.moc_status) {
-                      transitionStatusMutation.mutate(localHeader.moc_status);
-                    }
-                    handleUpdateHeader(localHeader);
-                    setIsHeaderDirty(false);
-                  }
-                  if (JSON.stringify(rows) !== JSON.stringify(pfmeaDetail.worksheet_rows)) {
-                    bulkUpdateMutation.mutate(rows);
-                  }
-                }} 
-                isReadOnly={isReadOnly} 
-                isSaving={bulkUpdateMutation.isPending || updateHeaderMutation.isPending || transitionStatusMutation.isPending}
-              />
+
+              {currentLayout === 'AIAG_APG' ? (
+                <CorporateWorksheetTable
+                  pfmeaId={pfmeaId!}
+                  partNumber={pfmeaDetail?.part_number || ''}
+                  flowchartSteps={flowchartDetail?.steps || []}
+                  rows={localRows}
+                  onRowsChange={handleRowsChange}
+                  onSaveAll={handleSaveAllGlobal}
+                  header={mergedHeader!}
+                  productData={flowchartDetail?.product}
+                  isHeaderDirty={hasUnsavedChanges}
+                  isReadOnly={isReadOnly || isSaving}
+                  isSaving={isSaving}
+                />
+              ) : (
+                <PFMEAWorksheetTable
+                  pfmeaId={pfmeaId!}
+                  partNumber={pfmeaDetail?.part_number || ''}
+                  flowchartSteps={flowchartDetail?.steps || []}
+                  rows={localRows}
+                  onRowsChange={handleRowsChange}
+                  onSaveAll={handleSaveAllGlobal}
+                  header={mergedHeader!}
+                  productData={flowchartDetail?.product}
+                  isHeaderDirty={hasUnsavedChanges}
+                  isReadOnly={isReadOnly || isSaving}
+                  isSaving={isSaving}
+                />
+              )}
             </div>
           )}
 
@@ -290,6 +339,64 @@ export const PFMEAEditorPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Floating Action Buttons Fixed on Viewport */}
+      {activeTab === 'worksheet' && !isReadOnly && (
+        <motion.div
+          className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.08 } },
+          }}
+        >
+          {/* Unsaved Changes Indicator */}
+          {hasUnsavedChanges && (
+            <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 },
+              }}
+              className="flex items-center gap-2 rounded-full border border-amber-300 dark:border-amber-600/40 bg-amber-100/95 dark:bg-amber-950/90 px-4 py-1.5 text-xs backdrop-blur-md shadow-lg"
+            >
+              <AlertCircle size={14} className="text-amber-700 dark:text-amber-400" />
+              <span className="text-amber-800 dark:text-amber-300 font-semibold">
+                {t('actions.unsavedChanges', 'Cambios sin guardar en base de datos')}
+              </span>
+            </motion.div>
+          )}
+
+          {/* Save Changes Button */}
+          <motion.button
+            onClick={() => handleSaveAllGlobal(localRows)}
+            disabled={isSaving || !hasUnsavedChanges}
+            type="button"
+            variants={{
+              hidden: { opacity: 0, y: 20, scale: 0.9 },
+              visible: { opacity: 1, y: 0, scale: 1 },
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-500 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-blue-600/25 transition-all disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          >
+            {isSaving ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : !hasUnsavedChanges ? (
+              <CheckCircle2 size={18} />
+            ) : (
+              <Save size={18} />
+            )}
+            <span>
+              {isSaving
+                ? t('common.saving', 'Guardando...')
+                : !hasUnsavedChanges
+                ? t('common.saved', 'Guardado')
+                : t('common.saveChanges', 'Guardar Cambios')}
+            </span>
+          </motion.button>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

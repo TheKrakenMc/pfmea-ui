@@ -23,7 +23,7 @@ const TechnologyCategoryManager: React.FC<TechnologyCategoryManagerProps> = ({ i
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -39,13 +39,9 @@ const TechnologyCategoryManager: React.FC<TechnologyCategoryManagerProps> = ({ i
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(sortedCategories.length / ITEMS_PER_PAGE);
-  const paginatedCategories = sortedCategories.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginatedCategories = sortedCategories.slice((Math.min(currentPage,Math.max(1,totalPages)) - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  React.useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
+
 
   const handleSaveEdit = async (id: number) => {
     if (!editName.trim()) return;

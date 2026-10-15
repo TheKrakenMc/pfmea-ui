@@ -21,7 +21,7 @@ export const Pagination: React.FC<PaginationProps> = ({
 }) => {
   const { t } = useTranslation();
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  
+
   if (totalItems === 0 || totalPages <= 1) return null;
 
   const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -31,7 +31,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -54,7 +54,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <span>
           {t('common.showing', 'Mostrando')} <span className="font-medium text-steel-200">{startItem}</span> {t('common.to', 'a')} <span className="font-medium text-steel-200">{endItem}</span> {t('common.of', 'de')} <span className="font-medium text-steel-200">{totalItems}</span> {t('common.results', 'resultados')}
         </span>
-        
+
         {onItemsPerPageChange && (
           <div className="flex items-center gap-2 border-l border-steel-800 pl-4 hidden sm:flex">
             <label htmlFor="itemsPerPage" className="sr-only">Items per page</label>

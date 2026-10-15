@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Filter, LayoutGrid, List as ListIcon, RefreshCw, Users, Edit, Copy, Archive, History } from 'lucide-react';
+import { Plus, Users, Edit, Copy, Archive, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listProducts } from '../../services/productService';
 import { useRBAC } from '../../hooks/useRBAC';
@@ -18,22 +17,24 @@ export const ProductListPage: React.FC = () => {
   const { canEditProduct } = useRBAC();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const [search, setSearch] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
-  const [sortOrder, setSortOrder] = useState<string>('date-desc');
+
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
+  const [selectedStatuses, rawSetSelectedStatuses] = useState<string[]>([]);
+  const setSelectedStatuses = (value: Parameters<typeof rawSetSelectedStatuses>[0]) => { rawSetSelectedStatuses(value); setCurrentPage(1); };
+  const [selectedCustomers, rawSetSelectedCustomers] = useState<string[]>([]);
+  const setSelectedCustomers = (value: Parameters<typeof rawSetSelectedCustomers>[0]) => { rawSetSelectedCustomers(value); setCurrentPage(1); };
+  const [sortOrder, rawSetSortOrder] = useState<string>('date-desc');
+  const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  
+
   // Reset to first page when search or filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedStatuses, selectedCustomers, sortOrder]);
-  
+
+
   const fetchProducts = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -58,12 +59,12 @@ export const ProductListPage: React.FC = () => {
   const filterOptions = useMemo(() => {
     const statuses = new Set<string>();
     const customers = new Set<string>();
-    
+
     products.forEach(p => {
       if (p.status) statuses.add(p.status);
       if (p.customer?.company_name) customers.add(p.customer.company_name);
     });
-    
+
     return {
       statuses: Array.from(statuses).map(s => ({ value: s, label: t(`status.${s.toLowerCase()}`, s) })),
       customers: Array.from(customers).map(c => ({ value: c, label: c }))
@@ -72,7 +73,7 @@ export const ProductListPage: React.FC = () => {
 
   // Filters & Sort
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(p => {
+    const filtered = products.filter(p => {
       const matchesStatus = selectedStatuses.length === 0 || (p.status && selectedStatuses.includes(p.status));
       const customerName = p.customer?.company_name || '';
       const matchesCustomer = selectedCustomers.length === 0 || (customerName && selectedCustomers.includes(customerName));
@@ -139,7 +140,7 @@ export const ProductListPage: React.FC = () => {
   );
 
   const actionButton = canEditProduct ? (
-    <button 
+    <button
       onClick={() => setIsCreateModalOpen(true)}
       className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all font-medium text-sm shadow-lg shadow-indigo-900/20 cursor-pointer focus-ring"
     >

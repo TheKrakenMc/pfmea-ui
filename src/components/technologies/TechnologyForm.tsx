@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import * as Yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useTranslation } from 'react-i18next';
-import { Zap, X, Plus, Trash2, Loader2, Settings } from 'lucide-react';
+import { Zap, X, Loader2, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TechnologyCategoryManager from './TechnologyCategoryManager';
 import {
@@ -29,7 +29,7 @@ const schema = Yup.object().shape({
 type FormValues = {
   name: string;
   category: string;
-  description: string;
+  description?: string;
 };
 
 const TechnologyForm: React.FC<TechnologyFormProps> = ({ tech, onClose, onSuccess, isOpen = true }) => {

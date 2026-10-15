@@ -13,10 +13,7 @@ import {
   User,
   Shield,
   Globe2,
-  Settings2,
-  Box,
-  LayoutTemplate
-} from 'lucide-react';
+  Box} from 'lucide-react';
 import type { PfmeaHeader, PfmeaHeaderUpdate } from '../../api/pfmeaService';
 import { ProductFamilyCatalogModal } from './ProductFamilyCatalogModal';
 import { productFamilyService, type ProductFamily } from '../../api/productFamilyService';
@@ -64,16 +61,21 @@ const schema = yup.object().shape({
   version: yup.number().nullable(),
   pfmea_id_number: yup.string().nullable(),
   moc_status: yup.string().nullable(),
+  supplier_part_number: yup.string().nullable(),
+  model_year: yup.string().nullable(),
+  key_date: yup.string().nullable(),
+  special_document_control: yup.string().nullable(),
+  process_responsibility: yup.string().nullable(),
 });
 
 export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ header, onUpdate, onLocalChange, isLoading }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [showAuxiliary, setShowAuxiliary] = useState(false);
+  const [] = useState(false);
   const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
-  const [productFamilies, setProductFamilies] = useState<ProductFamily[]>([]);
+  const [, setProductFamilies] = useState<ProductFamily[]>([]);
   const [isProductionLineCatalogModalOpen, setIsProductionLineCatalogModalOpen] = useState(false);
-  const [productionLines, setProductionLines] = useState<ProductionLine[]>([]);
+  const [, setProductionLines] = useState<ProductionLine[]>([]);
   const [isTeamMemberModalOpen, setIsTeamMemberModalOpen] = useState(false);
   const { user } = useAuth();
   const role = user?.role_name || '';
@@ -129,7 +131,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ header, onUpdate, on
   const isReadOnly = header.moc_status === 'Approved' || header.moc_status === 'Archived';
   const statusStyle = STATUS_STYLES[header.moc_status] || STATUS_STYLES.Draft;
 
-  const { register, watch, handleSubmit, formState: { errors, isDirty } } = useForm<PfmeaHeaderUpdate>({
+  const { register, watch, formState: { errors, isDirty } } = useForm<PfmeaHeaderUpdate>({
     resolver: yupResolver(schema) as any,
     defaultValues: {
       project_name: header.project_name,
@@ -144,6 +146,11 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ header, onUpdate, on
       version: header.version,
       pfmea_id_number: header.pfmea_id_number,
       moc_status: header.moc_status,
+      supplier_part_number: header.supplier_part_number,
+      model_year: header.model_year,
+      key_date: header.key_date,
+      special_document_control: header.special_document_control || '0',
+      process_responsibility: header.process_responsibility,
     },
   });
 
@@ -155,11 +162,6 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ header, onUpdate, on
     }
   }, [formDataString, isDirty, onLocalChange]);
 
-  const onSubmit = (data: PfmeaHeaderUpdate) => {
-    if (!isReadOnly && onUpdate) {
-      onUpdate(data);
-    }
-  };
 
   return (
     <div className="glass-card overflow-hidden rounded-2xl mb-6">
@@ -370,6 +372,75 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ header, onUpdate, on
                       <option value="Confidential">{t('pfmea.header.confidential')}</option>
                       <option value="Strictly Confidential">{t('pfmea.header.strictlyConfidential')}</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Row 5: APG Corporate Layout Fields (AIAG 4th Ed.) */}
+                <div className="pt-3 border-t border-slate-200 dark:border-steel-800/60">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500"></span>
+                    {t('pfmea.header.apgSectionTitle', 'Datos de Formato Corporativo APG (AIAG 4ta Edición)')}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="flex flex-col gap-1.5 group">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-steel-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">
+                        {t('pfmea.header.supplierPartNumber', 'Supplier Part #')}
+                      </label>
+                      <input
+                        type="text"
+                        {...register('supplier_part_number')}
+                        disabled={isReadOnly || isLoading}
+                        placeholder="Ej. SUP-45210"
+                        className="w-full bg-slate-50 dark:bg-steel-950/40 border border-slate-300 dark:border-steel-700/50 hover:border-slate-400 dark:hover:border-steel-600 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-steel-100 font-mono font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 group">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-steel-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">
+                        {t('pfmea.header.modelYear', 'Model Year / Vehicle')}
+                      </label>
+                      <input
+                        type="text"
+                        {...register('model_year')}
+                        disabled={isReadOnly || isLoading}
+                        placeholder="Ej. 2026 / Audi Q5"
+                        className="w-full bg-slate-50 dark:bg-steel-950/40 border border-slate-300 dark:border-steel-700/50 hover:border-slate-400 dark:hover:border-steel-600 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-steel-100 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 group">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-steel-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">
+                        {t('pfmea.header.keyDate', 'Key Date (Fecha Clave)')}
+                      </label>
+                      <input
+                        type="date"
+                        {...register('key_date')}
+                        disabled={isReadOnly || isLoading}
+                        className="w-full bg-slate-50 dark:bg-steel-950/40 border border-slate-300 dark:border-steel-700/50 hover:border-slate-400 dark:hover:border-steel-600 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-steel-100 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:invert-[0.8] dark:[&::-webkit-calendar-picker-indicator]:invert-[0.8]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 group">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-steel-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">
+                        {t('pfmea.header.processResponsibility', 'Process Responsibility')}
+                      </label>
+                      <input
+                        type="text"
+                        {...register('process_responsibility')}
+                        disabled={isReadOnly || isLoading}
+                        placeholder="Ej. Depto. Ensamble"
+                        className="w-full bg-slate-50 dark:bg-steel-950/40 border border-slate-300 dark:border-steel-700/50 hover:border-slate-400 dark:hover:border-steel-600 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-steel-100 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 group">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400 group-focus-within:text-orange-800 dark:group-focus-within:text-orange-300">
+                        {t('pfmea.header.specialDocControl', 'Special Doc Control')}
+                      </label>
+                      <input
+                        type="text"
+                        {...register('special_document_control')}
+                        disabled={isReadOnly || isLoading}
+                        placeholder="0"
+                        className="w-full bg-orange-50 dark:bg-orange-950/20 border border-orange-300 dark:border-orange-500/40 hover:border-orange-400 focus:border-orange-500 rounded-xl px-3 py-2 text-xs text-orange-900 dark:text-orange-200 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                      />
+                    </div>
                   </div>
                 </div>
               </form>

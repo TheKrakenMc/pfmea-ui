@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useContext } from 'react';
-import { FlowchartContext } from '../context/FlowchartContext';
+import { FlowchartContext } from '../context/flowchartState';
 
 export function useFlowchart() {
   const context = useContext(FlowchartContext);

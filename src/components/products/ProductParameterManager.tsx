@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import axiosClient from '../../api/axiosClient';
+import {revisions} from '../../api/sessionState';
+import React, { useState } from 'react';
 import { Plus, Trash2, Loader2, Save, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery,useQueryClient } from '@tanstack/react-query';
 import {
   useProductParameters,
-  useCreateProductParameter,
-  useUpdateProductParameter,
-  useDeleteProductParameter,
 } from '../../hooks/useProductParameters';
-import type { ProductParameterCreatePayload, MeasurementUnit } from '../../types/product.types';
+import type { ProductParameterCreatePayload } from '../../types/product.types';
 import { getMeasurementUnits } from '../../services/measurementUnits';
 import { toast } from 'sonner';
 import { useRBAC } from '../../hooks/useRBAC';
@@ -17,45 +16,42 @@ import { MeasurementUnitSelect } from './MeasurementUnitSelect';
 
 interface ProductParameterManagerProps {
   productId: number;
+  readOnly?:boolean;
   technologies?: { id: number; name: string }[];
 }
 
-export const ProductParameterManager: React.FC<ProductParameterManagerProps> = ({ productId, technologies = [] }) => {
+export const ProductParameterManager: React.FC<ProductParameterManagerProps> = ({ productId, technologies = [],readOnly=false }) => {
   const { t } = useTranslation();
-  const { canEditProduct } = useRBAC();
+  const { canEditProduct:roleCanEdit } = useRBAC();
+  const canEditProduct=roleCanEdit && !readOnly;
+  const queryClient=useQueryClient();
+  const [expectedVersion,setExpectedVersion]=useState(()=>revisions.get('products:'+productId));
   const { data: existingParams, isLoading: isLoadingParams } = useProductParameters(productId);
-  
+
   const { data: units = [], isLoading: isLoadingUnits } = useQuery({
     queryKey: ['measurementUnits'],
     queryFn: getMeasurementUnits,
   });
 
-  const [params, setParams] = useState<(ProductParameterCreatePayload & { id?: number; dragId: string; technology_id?: number | null })[]>([]);
+  const [params, rawSetParams] = useState<(ProductParameterCreatePayload & { id?: number; dragId: string; technology_id?: number | null })[]>([]);
+  const [parametersDirty,setParametersDirty]=useState(false);
+  const setParams:typeof rawSetParams=(update)=>{setParametersDirty(true);rawSetParams(update);};
   const [deletedParamIds, setDeletedParamIds] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTechId, setActiveTechId] = useState<number | null>(null);
-  
-  // Set default active tab
-  useEffect(() => {
-    if (technologies && technologies.length > 0 && !activeTechId) {
-      setActiveTechId(technologies[0].id);
-    } else if (technologies && technologies.length === 0) {
-      setActiveTechId(null);
-    }
-  }, [technologies, activeTechId]);
+  const [selectedTechId, setActiveTechId] = useState<number | null>(null);
+  const activeTechId = technologies.some(t=>t.id===selectedTechId) ? selectedTechId : technologies[0]?.id ?? null;
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const createParamMutation = useCreateProductParameter(productId);
-  const updateParamMutation = useUpdateProductParameter(productId);
-  const deleteParamMutation = useDeleteProductParameter(productId);
 
-  useEffect(() => {
+  const [loadedParams, setLoadedParams] = useState<typeof existingParams>();
+  if (existingParams !== loadedParams && !parametersDirty) {
+    setLoadedParams(existingParams);
     if (existingParams) {
       const sortedParams = [...existingParams].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-      setParams(
+      rawSetParams(
         sortedParams.map((p) => ({
           id: p.id,
           dragId: `param-${p.id}`,
@@ -70,22 +66,22 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
         }))
       );
     }
-  }, [existingParams]);
+  }
 
   const addParam = () => {
     if (!canEditProduct || !activeTechId) return;
-    
+
     // Calculate new order index for this technology
     const techParams = params.filter(p => p.technology_id === activeTechId);
-    
-    const newParam = { 
+
+    const newParam = {
       dragId: `new-${Date.now()}`,
-      name: '', 
-      measurement_unit_id: null, 
+      name: '',
+      measurement_unit_id: null,
       technology_id: activeTechId,
-      is_critical: false, 
-      target_value: null, 
-      min_value: null, 
+      is_critical: false,
+      target_value: null,
+      min_value: null,
       max_value: null,
       order_index: techParams.length
     };
@@ -94,7 +90,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     const totalPages = Math.ceil((techParams.length + 1) / itemsPerPage);
     setCurrentPage(totalPages);
   };
-  
+
   const removeParam = (dragId: string) => {
     if (!canEditProduct) return;
     const target = params.find(p => p.dragId === dragId);
@@ -102,15 +98,15 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
       setDeletedParamIds((prev) => [...prev, target.id!]);
     }
     setParams((prev) => prev.filter((p) => p.dragId !== dragId));
-    
+
     // Adjust pagination if needed
     const totalPages = Math.ceil((params.length - 1) / itemsPerPage);
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
     }
   };
-  
-  const updateParam = (dragId: string, field: string, value: any) => {
+
+  const updateParam = (dragId: string, field: string, value: string | number | boolean | null) => {
     if (!canEditProduct) return;
     setParams((prev) => prev.map((p) => (p.dragId === dragId ? { ...p, [field]: value } : p)));
   };
@@ -120,7 +116,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
 
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;
-    
+
     // Calculate global indices based on pagination
     const globalSourceIndex = (currentPage - 1) * itemsPerPage + sourceIndex;
     const globalDestinationIndex = (currentPage - 1) * itemsPerPage + destinationIndex;
@@ -145,33 +141,11 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     if (!canEditProduct) return;
     setIsSaving(true);
     try {
-      const deletePromises = deletedParamIds.map((id) =>
-        deleteParamMutation.mutateAsync(id)
-      );
-
-      const upsertPromises = params.map((p, index) => {
-        const payload = {
-          name: p.name,
-          measurement_unit_id: p.measurement_unit_id || null,
-          technology_id: p.technology_id || null,
-          target_value: p.target_value !== undefined && p.target_value !== '' && p.target_value !== null ? Number(p.target_value) : null,
-          min_value: p.min_value !== undefined && p.min_value !== '' && p.min_value !== null ? Number(p.min_value) : null,
-          max_value: p.max_value !== undefined && p.max_value !== '' && p.max_value !== null ? Number(p.max_value) : null,
-          is_critical: !!p.is_critical,
-          order_index: index,
-        };
-
-        if (p.id) {
-          return updateParamMutation.mutateAsync({
-            paramId: p.id,
-            ...payload,
-          });
-        } else {
-          return createParamMutation.mutateAsync(payload);
-        }
-      });
-
-      await Promise.all([...deletePromises, ...upsertPromises]);
+      const {data:saved}=await axiosClient.put(`/products/${productId}/parameters/bulk`,{expected_version:expectedVersion,rows:params.map(row=>({id:row.id,name:row.name,measurement_unit_id:row.measurement_unit_id,technology_id:row.technology_id,target_value:row.target_value,min_value:row.min_value,max_value:row.max_value,is_critical:row.is_critical,order_index:row.order_index})),deleted_row_ids:deletedParamIds});
+      setExpectedVersion(saved.lock_version);
+      await queryClient.invalidateQueries({queryKey:['products',productId,'parameters']});
+      await queryClient.invalidateQueries({queryKey:['products']});
+      setParametersDirty(false);
       setDeletedParamIds([]);
       toast.success(t('products.parameters.saveSuccess', 'Parámetros guardados exitosamente'));
     } catch (err) {
@@ -195,7 +169,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  
+
   const hasTechnologies = technologies && technologies.length > 0;
 
   return (
@@ -249,8 +223,8 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
         <div className="p-8 border border-dashed border-steel-800 rounded-xl text-center bg-steel-950/30">
           <p className="text-steel-500 text-sm">{t('products.parameters.empty', 'No hay parámetros definidos para este producto.')}</p>
           {canEditProduct && (
-            <button 
-              onClick={addParam} 
+            <button
+              onClick={addParam}
               disabled={!hasTechnologies}
               title={!hasTechnologies ? t('products.parameters.requiresTechnology', 'Debe definir al menos una tecnología para agregar parámetros.') : ''}
               className="mt-2 text-indigo-400 text-sm hover:text-indigo-300 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-indigo-400"
@@ -270,37 +244,37 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
             <div className="col-span-1">{t('products.parameters.table.max', 'Máximo')}</div>
             <div className="col-span-1 text-center"></div>
           </div>
-          
+
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="parameters-list">
               {(provided) => (
-                <div 
-                  {...provided.droppableProps} 
+                <div
+                  {...provided.droppableProps}
                   ref={provided.innerRef}
                   className="divide-y divide-steel-800 min-h-[100px]"
                 >
                   {paginatedParams.map((p, index) => (
-                    <Draggable 
-                      key={p.dragId} 
-                      draggableId={p.dragId} 
-                      index={index} 
+                    <Draggable
+                      key={p.dragId}
+                      draggableId={p.dragId}
+                      index={index}
                       isDragDisabled={!canEditProduct}
                     >
                       {(provided, snapshot) => (
-                        <div 
+                        <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           className={`grid grid-cols-12 gap-3 p-3 items-start group transition-colors ${
                             snapshot.isDragging ? 'bg-steel-800/80 shadow-lg ring-1 ring-indigo-500/50 z-10' : 'hover:bg-steel-900/30'
                           }`}
                         >
-                          <div 
+                          <div
                             className="col-span-1 flex justify-center pt-2 text-steel-600 hover:text-steel-400 cursor-grab active:cursor-grabbing w-8"
                             {...provided.dragHandleProps}
                           >
                             <GripVertical size={16} />
                           </div>
-                          
+
                           <div className="col-span-4">
                             <input
                               className="w-full bg-steel-900 border border-steel-700 rounded-lg px-2.5 py-1.5 text-sm text-steel-100 placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
@@ -320,16 +294,16 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                               <span className="font-medium text-amber-500/80">{t('products.parameters.table.critical', 'Crítico')}</span>
                             </label>
                           </div>
-                          
+
                           <div className="col-span-3">
                             <MeasurementUnitSelect
                               units={units}
-                              value={p.measurement_unit_id}
+                              value={p.measurement_unit_id ?? null}
                               onChange={(id) => updateParam(p.dragId, 'measurement_unit_id', id)}
                               disabled={!canEditProduct}
                             />
                           </div>
-                          
+
                           <div className="col-span-1">
                             <input
                               type="number"
@@ -341,7 +315,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                               disabled={!canEditProduct}
                             />
                           </div>
-                          
+
                           <div className="col-span-1">
                             <input
                               type="number"
@@ -353,7 +327,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                               disabled={!canEditProduct}
                             />
                           </div>
-                          
+
                           <div className="col-span-1">
                             <input
                               type="number"
@@ -365,7 +339,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                               disabled={!canEditProduct}
                             />
                           </div>
-                          
+
                           <div className="col-span-1 flex justify-center pt-1.5">
                             {canEditProduct && (
                               <button
@@ -386,7 +360,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
               )}
             </Droppable>
           </DragDropContext>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-3 border-t border-steel-800 bg-steel-900/30">

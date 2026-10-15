@@ -1,8 +1,9 @@
+import { getErrorMessage } from '../../utils/errors';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, FileEdit, Copy, Archive, FileText, ChevronDown, AlertCircle, X, Loader2, Factory, Hash, Users, FileSignature, Eye, Package } from 'lucide-react';
+import { Plus, Archive, AlertCircle, X, Loader2, Factory, Hash, Users, FileSignature, Package } from 'lucide-react';
 import { getDocumentHeaders, createFlowchart, listProducts, archiveFlowchart, type FlowchartRead, type ProductRead, type ArchivePayload } from '../../services/flowchartService';
 import { createProduct, listTechnologies, uploadImage } from '../../services/productService';
 import { listCustomers } from '../../services/customerService';
@@ -24,17 +25,7 @@ import { toast } from 'sonner';
 
 // ─── Status badge styles ─────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-slate-500/20 border-slate-500/50',
-  approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
-  'in review': 'bg-review-500/20 text-review-500 border-review-500/50',
-  in_review: 'bg-review-500/20 text-review-500 border-review-500/50',
-  archived: 'bg-amber-500/20 text-amber-300 border-amber-500/50',
-};
 
-function getStatusStyle(status: string): string {
-  return STATUS_STYLES[status.toLowerCase()] ?? STATUS_STYLES.draft;
-}
 
 
 
@@ -52,25 +43,27 @@ export const FlowchartDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
-  const [sortOrder, setSortOrder] = useState<string>('date-desc');
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
+  const [selectedStatuses, rawSetSelectedStatuses] = useState<string[]>([]);
+  const setSelectedStatuses = (value: Parameters<typeof rawSetSelectedStatuses>[0]) => { rawSetSelectedStatuses(value); setCurrentPage(1); };
+  const [selectedCustomers, rawSetSelectedCustomers] = useState<string[]>([]);
+  const setSelectedCustomers = (value: Parameters<typeof rawSetSelectedCustomers>[0]) => { rawSetSelectedCustomers(value); setCurrentPage(1); };
+  const [sortOrder, rawSetSortOrder] = useState<string>('date-desc');
+  const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedStatuses, selectedCustomers, sortOrder]);
+
 
   // Modal & Project Creation State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [products, setProducts] = useState<ProductRead[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  
+
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
@@ -134,7 +127,7 @@ export const FlowchartDashboard: React.FC = () => {
   // ─── Fetch products when modal opens ────────────────────────
   useEffect(() => {
     if (isModalOpen) {
-      setLoadingProducts(true);
+
       Promise.all([
         listProducts(),
         listTechnologies(),
@@ -158,12 +151,12 @@ export const FlowchartDashboard: React.FC = () => {
   const filterOptions = useMemo(() => {
     const statuses = new Set<string>();
     const customers = new Set<string>();
-    
+
     flowcharts.forEach(fc => {
       if (fc.status) statuses.add(fc.status);
       if (fc.product?.customer_name) customers.add(fc.product.customer_name);
     });
-    
+
     return {
       statuses: Array.from(statuses).map(s => ({ value: s, label: t(`status.${s.toLowerCase()}`, s) })),
       customers: Array.from(customers).map(c => ({ value: c, label: c }))
@@ -172,18 +165,18 @@ export const FlowchartDashboard: React.FC = () => {
 
   // ─── Filters & Sort ────
   const filteredProjects = useMemo(() => {
-    let filtered = flowcharts.filter((fc) => {
+    const filtered = flowcharts.filter((fc) => {
       const matchesSearch =
         fc.title.toLowerCase().includes(search.toLowerCase()) ||
         String(fc.id).includes(search) ||
         fc.product?.part_number?.toLowerCase().includes(search.toLowerCase()) ||
         fc.product?.customer_name?.toLowerCase().includes(search.toLowerCase());
-        
+
       const matchesCustomer = selectedCustomers.length === 0 || (fc.product?.customer_name && selectedCustomers.includes(fc.product.customer_name));
-        
+
       let matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(fc.status);
       const isArchived = fc.status?.toLowerCase() === 'archived';
-      
+
       // If the toggle is active, force archived documents to pass the status check.
       if (showArchived && isArchived) {
         matchesStatus = true;
@@ -319,9 +312,9 @@ export const FlowchartDashboard: React.FC = () => {
 
       // Redirect to Editor
       navigate(`/flowcharts/${newFlowchart.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating flowchart:', err);
-      const detail = err.response?.data?.detail || t('dashboard.modal.errorCreation', 'Error al crear el proyecto. Revisa los datos.');
+      const detail = getErrorMessage(err) || t('dashboard.modal.errorCreation', 'Error al crear el proyecto. Revisa los datos.');
       setModalError(detail);
     } finally {
       setSubmitting(false);
@@ -746,7 +739,7 @@ export const FlowchartDashboard: React.FC = () => {
                                 />
                               </div>
                             </div>
-                            
+
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 flex items-center gap-1.5 block mb-1.5">
                                 <Factory size={12} /> {t('product.description', 'Descripción del Producto')}
@@ -775,7 +768,7 @@ export const FlowchartDashboard: React.FC = () => {
                               <Factory size={14} className="text-indigo-400" />
                               {t('products.step2.title', 'Especificaciones y Tecnologías')}
                             </h4>
-                            
+
                             <div className="grid grid-cols-2 gap-5">
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
@@ -789,7 +782,7 @@ export const FlowchartDashboard: React.FC = () => {
                                   className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-steel-100"
                                 />
                               </div>
-                              
+
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                                   {t('products.form.weight', 'Peso (kg)')}
@@ -819,7 +812,7 @@ export const FlowchartDashboard: React.FC = () => {
                                   className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-medium text-steel-100"
                                 />
                               </div>
-                              
+
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                                   {t('products.form.ratePerHour', 'Rate / Hora (pz/hr)')}
@@ -868,8 +861,8 @@ export const FlowchartDashboard: React.FC = () => {
                     disabled={submitting}
                     className="px-4 py-2.5 rounded-lg text-sm text-steel-400 hover hover:bg-steel-850 transition-colors font-medium cursor-pointer"
                   >
-                    {productMode === 'create' && productCreateStep === 2 
-                      ? t('products.form.back', 'Atrás') 
+                    {productMode === 'create' && productCreateStep === 2
+                      ? t('products.form.back', 'Atrás')
                       : t('common.cancel', 'Cancelar')}
                   </button>
 

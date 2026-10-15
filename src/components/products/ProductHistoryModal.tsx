@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import {useQuery} from '@tanstack/react-query';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getProductHistory } from '../../services/productService';
-import type { DocumentVersion } from '../../types/product.types';
 
 interface ProductHistoryModalProps {
   productId: number;
@@ -15,36 +15,15 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const [history, setHistory] = useState<DocumentVersion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchHistory();
-    }
-  }, [isOpen, productId]);
-
-  const fetchHistory = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getProductHistory(productId);
-      setHistory(data);
-    } catch (err: any) {
-      console.error('Error fetching history:', err);
-      setError(t('productVersioning.errorFetchingHistory', 'Error al cargar el historial.'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {data:history=[],isLoading:loading,error:queryError} = useQuery({queryKey:['product-history',productId],queryFn:()=>getProductHistory(productId),enabled:isOpen});
+  const error=queryError ? t('productVersioning.errorFetchingHistory','Error al cargar el historial.') : null;
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-xl font-bold text-gray-800">
@@ -82,10 +61,10 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
 
           {!loading && !error && history.length > 0 && (
             <div className="space-y-6">
-              {history.map((version, index) => (
+              {history.map((version) => (
                 <div key={version.id} className="relative pl-6 border-l-2 border-indigo-200 last:border-0 pb-6 last:pb-0">
                   <div className="absolute w-3 h-3 bg-indigo-500 rounded-full -left-[7px] top-1 shadow ring-4 ring-white" />
-                  
+
                   <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -100,7 +79,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                         {new Date(version.created_at).toLocaleString()}
                       </span>
                     </div>
-                    
+
                     {version.snapshot_data?.engineering_level && (
                       <div className="mt-2 text-sm text-gray-600">
                         <span className="font-medium text-gray-700">{t('productVersioning.engineeringLevel', 'Nivel de Ingeniería')}:</span>{' '}

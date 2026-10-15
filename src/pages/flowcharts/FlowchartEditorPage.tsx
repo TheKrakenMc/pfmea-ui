@@ -1,3 +1,6 @@
+import {listPlants} from '../../services/plantService';
+import {useAuth} from '../../hooks/useAuth';
+import { draftKey, loadDraft, discardDraft, type Draft } from '../../services/drafts';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -7,16 +10,19 @@ import { FlowchartWorkspace } from '../../components/flowchart/FlowchartWorkspac
 import { ArchivedBanner } from '../../components/flowchart/ArchivedBanner';
 import { ObsoleteWatermark } from '../../components/flowchart/ObsoleteWatermark';
 import { DocumentHistoryDrawer } from '../../components/flowchart/DocumentHistoryDrawer';
+import { ExportFlowchartButton } from '../../components/flowcharts/ExportFlowchartButton';
 import { useFlowchart } from '../../hooks/useFlowchart';
 import { getFlowchartById } from '../../services/flowchartService';
 import { listTechnologies } from '../../services/technologyService';
-import type { FlowchartState } from '../../types/flowchart.types';
+import type { FlowchartState, CriticalFlag, SymbolType } from '../../types/flowchart.types';
 
 export const FlowchartEditorPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const { state, dispatch } = useFlowchart();
+  const { user } = useAuth();
+  const [pendingDraft, setPendingDraft] = useState<Draft<FlowchartState> | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,29 +31,19 @@ export const FlowchartEditorPage: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
-    if (!id) {
-      setError('No se proporcionó un ID de flowchart.');
-      setLoading(false);
-      return;
-    }
-
     const flowchartId = Number(id);
-    if (isNaN(flowchartId)) {
-      setError(`ID "${id}" no es válido.`);
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
 
     async function fetchFlowchart() {
       try {
-        const [data, techs] = await Promise.all([
+        if (!id || !Number.isInteger(flowchartId) || flowchartId<=0) throw new Error("ID inválido");
+        const [data, techs, plants] = await Promise.all([
           getFlowchartById(flowchartId),
           listTechnologies({ limit: 100 }).catch((err) => {
             console.error('Failed to prefetch technologies', err);
             return [];
           }),
+          listPlants(),
         ]);
         if (cancelled) return;
 
@@ -63,17 +59,18 @@ export const FlowchartEditorPage: React.FC = () => {
         // Map backend data to FlowchartState and hydrate context
         const hydratedState: FlowchartState = {
           flowchartId: data.id,
+          lockVersion: data.lock_version,
           header: {
             projectId: data.flowchart_code || String(data.id),
-            plantCode: data.product?.plant_id === 1 ? 'PUEBLA' : 'PUEBLA',
-            plantName: data.product?.plant_id === 1 ? 'Puebla Plant' : 'Puebla Plant',
+            plantCode: plants.find(p=>p.id===data.plant_id)?.code || '',
+            plantName: plants.find(p=>p.id===data.plant_id)?.name || '',
             region: 'NAFTA',
             customer: data.product?.customer_name || '',
             partNumber: data.product?.part_number || '',
             partName: data.title || data.product?.description || '',
             diagramStatus: data.status ? (data.status.toLowerCase().replace(' ', '_') as 'draft' | 'in_review' | 'approved') : 'draft',
             lastModified: data.updated_at,
-            modifiedBy: 'John Owner',
+            modifiedBy: user?.full_name || '',
             creationDate: data.created_at ? data.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
             revisionDate: data.updated_at ? data.updated_at.split('T')[0] : new Date().toISOString().split('T')[0],
             revision: String(data.version || 1),
@@ -85,13 +82,17 @@ export const FlowchartEditorPage: React.FC = () => {
             return {
               id: String(step.id),
               sequence: step.step_number,
+              subStep: step.sub_step || 0,
               operationId: opId,
               operationName: opId ? (techMap.get(opId) || '') : '',
               machineryId: step.machinery_id ?? null,
-              criticalFlag: (step.critical_flag as any) || 'none',
-              symbolType: (step.symbol_type as any) || 'operation',
+              criticalFlag: (step.critical_flag as CriticalFlag) || 'none',
+              symbolType: (step.symbol_type as SymbolType) || 'operation',
               responsibleDepartment: step.responsible_department || 'Producción',
               description: step.custom_description || undefined,
+              productCharacteristics: step.product_characteristics || '',
+              processCharacteristics: step.process_characteristics || '',
+              target: step.target || '',
             };
           }),
           isDirty: false,
@@ -100,6 +101,7 @@ export const FlowchartEditorPage: React.FC = () => {
         };
 
         dispatch({ type: 'LOAD_STATE', payload: hydratedState });
+        if (user) setPendingDraft(loadDraft<FlowchartState>(draftKey(user.id,user.plant_id,"flowchart",data.id)));
         setLoading(false);
       } catch (err: unknown) {
         if (cancelled) return;
@@ -116,7 +118,7 @@ export const FlowchartEditorPage: React.FC = () => {
 
     fetchFlowchart();
     return () => { cancelled = true; };
-  }, [id, dispatch]);
+  }, [id, dispatch, user]);
 
   // ─── Loading State ─────────────────────────────────────────
   if (loading) {
@@ -135,7 +137,7 @@ export const FlowchartEditorPage: React.FC = () => {
   // ─── Error State ───────────────────────────────────────────
   if (error) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -158,14 +160,20 @@ export const FlowchartEditorPage: React.FC = () => {
   }
 
   const isArchived = docStatus?.toLowerCase() === 'archived';
+  const isReadOnly=isArchived || docStatus?.toLowerCase()==='approved' || user?.role_name==='Viewer';
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col min-h-screen"
+      className="flex flex-col min-h-screen bg-slate-50/50 dark:bg-steel-950"
     >
+      {pendingDraft && user && id && <div className="p-4 bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100" role="status">
+        Existe un borrador local sin guardar en el servidor.
+        <button className="mx-3 underline" onClick={() => { dispatch({type:'LOAD_STATE',payload:pendingDraft.data}); dispatch({type:'MARK_DIRTY'}); setPendingDraft(null); }}>Recuperar borrador</button>
+        <button className="underline" onClick={() => { discardDraft(draftKey(user.id,user.plant_id,'flowchart',Number(id))); setPendingDraft(null); }}>Descartar borrador</button>
+      </div>}
       {/* Archived Document Banner */}
       {isArchived && (
         <ArchivedBanner
@@ -183,48 +191,67 @@ export const FlowchartEditorPage: React.FC = () => {
         />
       )}
 
-      {/* Top Bar Navigation */}
-      <div className="bg-steel-950/80 backdrop-blur-md border-b border-steel-800 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/flowcharts')}
-            className="p-2 text-steel-400 hover:text-white hover:bg-steel-800 rounded-lg transition-colors group"
-            title="Volver"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          </button>
-          <div className="h-6 w-px bg-steel-800"></div>
-          <div className="flex flex-col">
-            <span className="text-xs text-steel-400 uppercase font-semibold tracking-wider">{t('pfmea.editor.docId', 'DOCUMENT ID')}</span>
-            <span className="font-mono font-medium">{state.header?.projectId || id}</span>
-          </div>
-          {title && (
-            <>
-              <div className="h-6 w-px bg-steel-800"></div>
-              <span className="text-steel-300 text-sm font-medium truncate max-w-xs">{title}</span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {isArchived ? (
-            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-sm flex items-center gap-1.5">
-              {t('archive.status.archived', 'ARCHIVADO')}
-            </span>
-          ) : (
-            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500 text-amber-950 border-amber-600 shadow-sm">
-              {t('pfmea.editor.inEdition', 'En Edición')}
-            </span>
-          )}
-        </div>
-      </div>
+      {/* The Workspace Container */}
+      <div className="flex-1 flex flex-col p-6 pt-4 gap-5">
+        {/* Unified Document Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-steel-900/90 border border-slate-200 dark:border-steel-700/60 rounded-xl px-4 py-2.5 backdrop-blur-md shadow-md">
+          {/* Left: Document Metadata & Back Button */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/flowcharts')}
+              className="p-1.5 text-slate-500 dark:text-steel-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-steel-800 rounded-lg transition-colors group cursor-pointer"
+              title={t('common.back', 'Volver')}
+            >
+              <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+            </button>
 
-      {/* The Workspace */}
-      <div className="flex-1 overflow-hidden relative">
-        {/* Obsolete Watermark overlay */}
-        {isArchived && <ObsoleteWatermark />}
-        {/* Disable all interactions when archived */}
-        <div className={isArchived ? 'pointer-events-none select-none' : ''}>
-          <FlowchartWorkspace />
+            <div className="h-5 w-px bg-slate-200 dark:bg-steel-700/60" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-400 dark:text-steel-400 uppercase font-semibold tracking-wider leading-none">
+                {t('pfmea.editor.docId', 'DOCUMENT ID')}
+              </span>
+              <span className="font-mono text-xs font-semibold text-slate-800 dark:text-steel-100 leading-tight mt-0.5">
+                {state.header?.projectId || id}
+              </span>
+            </div>
+
+            {title && (
+              <>
+                <div className="h-5 w-px bg-slate-200 dark:bg-steel-700/60" />
+                <span className="text-xs font-medium text-slate-700 dark:text-steel-300 truncate max-w-[180px] lg:max-w-xs" title={title}>
+                  {title}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Right: Export PDF Action & Status Badges */}
+          <div className="flex items-center gap-2.5">
+            <ExportFlowchartButton
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-steel-800 text-slate-800 dark:text-steel-100 hover:bg-slate-200 dark:hover:bg-steel-700 border border-slate-200 dark:border-steel-700/60 shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+
+            {isArchived ? (
+              <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-xs flex items-center gap-1.5">
+                {t('archive.status.archived', 'ARCHIVADO')}
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500 text-amber-950 border-amber-600 shadow-xs">
+                {isReadOnly ? t('common.readOnly','Sólo lectura') : t('pfmea.editor.inEdition', 'En Edición')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* The Workspace Area */}
+        <div className="flex-1 relative">
+          {/* Obsolete Watermark overlay */}
+          {isArchived && <ObsoleteWatermark />}
+          {/* Disable all interactions when archived */}
+          <fieldset disabled={isReadOnly} className={isReadOnly ? 'pointer-events-none min-w-0' : 'min-w-0'}>
+            <FlowchartWorkspace />
+          </fieldset>
         </div>
       </div>
     </motion.div>

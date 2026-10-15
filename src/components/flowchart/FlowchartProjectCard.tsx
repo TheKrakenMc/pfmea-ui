@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Copy, Archive, GitBranch, History, Lock } from 'lucide-react';
+import { Copy, Archive, GitBranch, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlowchartRead } from '../../services/flowchartService';
 import { formatDate } from '../../utils/dateUtils';
@@ -101,8 +101,8 @@ export const FlowchartProjectCard: React.FC<FlowchartProjectCardProps> = ({ proj
       <div className={`mt-auto pt-4 flex flex-col gap-3 border-t ${isArchived ? 'border-amber-200 dark:border-amber-500/30' : 'border-steel-800/50'}`}>
         <div className="flex flex-wrap gap-2">
           <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-medium font-mono ${
-            isArchived 
-              ? 'bg-amber-100/80 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300' 
+            isArchived
+              ? 'bg-amber-100/80 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300'
               : 'bg-steel-800 border border-steel-700 text-steel-400'
           }`}>
             #{project.id} • v{project.version}

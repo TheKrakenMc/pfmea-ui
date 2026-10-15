@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, Loader2, X, Scale } from 'lucide-react';
@@ -18,11 +18,12 @@ import { MultiSelectFilter } from '../../components/ui/MultiSelectFilter';
 export const MeasurementUnitsPage: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, rawSetSearchTerm] = useState('');
+  const setSearchTerm = (value: Parameters<typeof rawSetSearchTerm>[0]) => { rawSetSearchTerm(value); setCurrentPage(1); };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<MeasurementUnit | null>(null);
-  
+
   const [deleteDialog, setDeleteDialog] = useState<{isOpen: boolean; unit: MeasurementUnit | null}>({
     isOpen: false,
     unit: null
@@ -32,8 +33,10 @@ export const MeasurementUnitsPage: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [sortOrder, setSortOrder] = useState<string>('desc');
-  const [selectedMagnitudes, setSelectedMagnitudes] = useState<string[]>([]);
+  const [sortOrder, rawSetSortOrder] = useState<string>('desc');
+  const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
+  const [selectedMagnitudes, rawSetSelectedMagnitudes] = useState<string[]>([]);
+  const setSelectedMagnitudes = (value: Parameters<typeof rawSetSelectedMagnitudes>[0]) => { rawSetSelectedMagnitudes(value); setCurrentPage(1); };
 
   const { data: units = [], isLoading } = useQuery({
     queryKey: ['measurementUnits'],
@@ -70,7 +73,7 @@ export const MeasurementUnitsPage: React.FC = () => {
     onError: () => toast.error(t('measurementUnits.toast.deleteError', 'Error deleting unit')),
   });
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useHookForm<MeasurementUnit>();
+  const { register, handleSubmit, reset, setValue } = useHookForm<MeasurementUnit>();
 
   const uniqueMagnitudes = useMemo(() => {
     const magnitudes = new Set(units.map(u => u.magnitude).filter(Boolean));
@@ -105,12 +108,10 @@ export const MeasurementUnitsPage: React.FC = () => {
   };
 
   // Reset page to 1 when search or sort changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, sortOrder, selectedMagnitudes]);
+
 
   const filteredUnits = useMemo(() => {
-    let filtered = units.filter(u => 
+    let filtered = units.filter(u =>
       u.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.symbology.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.magnitude.toLowerCase().includes(searchTerm.toLowerCase())
@@ -288,7 +289,7 @@ export const MeasurementUnitsPage: React.FC = () => {
               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-sm placeholder-steel-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-xs font-semibold text-steel-300 uppercase tracking-wider block mb-1.5">{t('measurementUnits.form.symbology', 'Symbol')}</label>
             <input
@@ -302,7 +303,7 @@ export const MeasurementUnitsPage: React.FC = () => {
             <label className="text-xs font-semibold text-steel-300 uppercase tracking-wider block mb-1.5">{t('measurementUnits.form.magnitude', 'Magnitude')}</label>
             {!isCustomMagnitude ? (
               <select
-                {...register('magnitude', { 
+                {...register('magnitude', {
                   required: true,
                   onChange: (e) => {
                     if (e.target.value === 'other') {

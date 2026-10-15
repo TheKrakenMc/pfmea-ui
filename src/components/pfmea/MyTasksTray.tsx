@@ -15,7 +15,7 @@ export const MyTasksTray: React.FC<MyTasksTrayProps> = ({ tasks }) => {
     if (!ap) return null;
     let colorClass = 'bg-steel-800 text-steel-400';
     let Icon = AlertCircle;
-    
+
     if (ap === 'H') {
       colorClass = 'bg-alert-red/20 text-alert-red border border-alert-red/30';
       Icon = AlertTriangle;
@@ -100,8 +100,8 @@ export const MyTasksTray: React.FC<MyTasksTrayProps> = ({ tasks }) => {
                   </span>
                 )}
               </div>
-              
-              <Link 
+
+              <Link
                 to={`/pfmea/${task.pfmea_id}`}
                 className="w-8 h-8 rounded-full bg-steel-800/50 border border-steel-700/50 flex items-center justify-center text-steel-400 hover:text-forge-400 hover:bg-steel-700 hover:border-forge-500 transition-all group-hover:translate-x-1"
               >

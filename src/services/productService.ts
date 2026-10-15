@@ -1,8 +1,8 @@
 import axiosClient from '../api/axiosClient';
-import type { 
-  Product, 
-  ProductCreatePayload, 
-  ProductUpdatePayload, 
+import type {
+  Product,
+  ProductCreatePayload,
+  ProductUpdatePayload,
   Technology,
   ProductParameter,
   ProductParameterCreatePayload,
@@ -47,13 +47,13 @@ export async function listTechnologies(): Promise<Technology[]> {
 export async function uploadImage(file: File): Promise<{ filename: string, path: string }> {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const { data } = await axiosClient.post<{ filename: string, path: string }>('/products/upload-image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
   });
-  return data;
+  return { ...data, path: new URL(data.path, new URL(axiosClient.defaults.baseURL || '/', window.location.origin)).href };
 }
 
 // ── Product Parameter CRUD ──────────────────────────────────────────────
@@ -96,7 +96,7 @@ export async function deleteProductParameter(paramId: number): Promise<void> {
 export async function createProductRevision(
   productId: number,
   payload: { change_reason: string; engineering_level: string }
-): Promise<any> {
+): Promise<unknown> {
   const { data } = await axiosClient.post(`/products/${productId}/revisions`, payload);
   return data;
 }
@@ -109,7 +109,7 @@ export async function updateProductStatus(
   return data;
 }
 
-export async function getProductHistory(productId: number): Promise<any[]> {
-  const { data } = await axiosClient.get<any[]>(`/products/${productId}/history`);
+export async function getProductHistory(productId: number): Promise<import('../types/product.types').DocumentVersion[]> {
+  const { data } = await axiosClient.get<import('../types/product.types').DocumentVersion[]>(`/products/${productId}/history`);
   return data;
 }

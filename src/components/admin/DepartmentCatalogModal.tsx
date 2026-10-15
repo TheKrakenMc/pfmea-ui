@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { Resolver } from 'react-hook-form';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -21,38 +23,19 @@ const schema = yup.object().shape({
 export const DepartmentCatalogModal: React.FC<DepartmentCatalogModalProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {data: departments = [], isLoading, refetch} = useQuery({queryKey:['departments','catalog'],queryFn:()=>departmentService.list(),enabled:isOpen});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<DepartmentCreate & { is_active?: boolean }>({
-    resolver: yupResolver(schema) as any,
+    resolver: yupResolver(schema) as Resolver<DepartmentCreate & { is_active?: boolean }>,
     defaultValues: {
       name: '',
       is_active: true
     }
   });
 
-  const loadDepartments = async () => {
-    try {
-      setIsLoading(true);
-      const data = await departmentService.list();
-      setDepartments(data);
-    } catch (error) {
-      console.error("Failed to load departments", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      loadDepartments();
-      reset({ name: '', is_active: true });
-      setEditingId(null);
-    }
-  }, [isOpen]);
+  const loadDepartments = async () => { await refetch(); };
 
   const onSubmit = async (data: DepartmentCreate & { is_active?: boolean }) => {
     try {
@@ -86,7 +69,7 @@ export const DepartmentCatalogModal: React.FC<DepartmentCatalogModalProps> = ({ 
     }
   };
 
-  const filteredDepartments = departments.filter(d => 
+  const filteredDepartments = departments.filter(d =>
     d.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -188,7 +171,7 @@ export const DepartmentCatalogModal: React.FC<DepartmentCatalogModalProps> = ({ 
                 </h3>
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-steel-500" />
-                  <input 
+                  <input
                     type="text"
                     placeholder={t('common.search', 'Buscar...')}
                     value={searchTerm}

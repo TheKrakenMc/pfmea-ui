@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown, Check, X, Search, Plus } from 'lucide-react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import { Check, Search, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Technology } from '../../types/product.types';
 import { createPortal } from 'react-dom';
@@ -26,7 +26,7 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
 
   const filteredTechnologies = useMemo(() => {
     return technologies.filter(
-      (tech) => 
+      (tech) =>
         (tech.name || tech.operation_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (tech.code || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -47,12 +47,8 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setCoords(null);
-      setSearchTerm('');
-      return;
-    }
+  useLayoutEffect(() => {
+    if (!isOpen) return;
 
     const updateCoords = () => {
       if (containerRef.current) {
@@ -61,7 +57,7 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
         const spaceAbove = rect.top;
         const dropdownHeight = 240; // max-h-60 is 240px
 
-        let positionCoords: any = {
+        const positionCoords: { top?: number; bottom?: number; left: number; width: number } = {
           left: rect.left,
           width: rect.width,
         };
@@ -106,26 +102,22 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
     }
   };
 
-  const removeTechnology = (e: React.MouseEvent, id: number) => {
-    e.stopPropagation();
-    onChange(selectedIds.filter((tId) => tId !== id));
-  };
 
   const selectedTechs = technologies.filter((t) => selectedIds.includes(t.id));
 
   return (
     <div className="relative inline-flex flex-wrap items-center gap-2" ref={containerRef}>
       {selectedTechs.map((tech) => (
-        <TechnologyBadge 
-          key={tech.id} 
-          technology={tech} 
-          onRemove={(id) => onChange(selectedIds.filter((tId) => tId !== id))} 
+        <TechnologyBadge
+          key={tech.id}
+          technology={tech}
+          onRemove={(id) => onChange(selectedIds.filter((tId) => tId !== id))}
         />
       ))}
-      
+
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (setSearchTerm(''), setIsOpen(!isOpen))}
         className="inline-flex items-center justify-center border border-dashed border-steel-600 text-steel-400 hover:text-indigo-400 hover:border-indigo-500/50 hover:bg-indigo-500/10 px-3 py-1 rounded-full text-xs font-medium transition-colors h-6"
       >
         <Plus size={14} className="mr-1" />

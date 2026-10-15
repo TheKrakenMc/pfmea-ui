@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Package, Hash, FileText, Copy, Archive, History, Maximize2, Scale, Timer, Zap } from 'lucide-react';
+import { Package, Hash, FileText, Copy, Archive, History, Maximize2, Scale, Timer, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '../../types/product.types';

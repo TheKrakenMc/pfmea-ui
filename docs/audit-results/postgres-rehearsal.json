@@ -1,0 +1,11 @@
+{
+  "engine": "PostgreSQL 18.6 (PGlite 0.5.10) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.5 (1db513782be24469589d7cb8a1f1834e9a33f271), 32-bit",
+  "syntheticBackupRestored": true,
+  "additiveMigrationsPassed": true,
+  "restrictedRoleRlsPassed": true,
+  "staleRevisionRejected": true,
+  "countsPreserved": {
+    "documents": 2,
+    "rows": 2
+  }
+}

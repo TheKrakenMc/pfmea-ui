@@ -1,0 +1,101 @@
+{
+  "results": [
+    {
+      "flow": "password login",
+      "passed": true,
+      "url": "http://localhost:5174/"
+    },
+    {
+      "route": "/products/1",
+      "ms": 2168,
+      "title": "APG DMS — Document Management System",
+      "text": " (Cliente)\nNivel de Ingeniería\nDibujo\nEtapa\nSeleccionar etapa...\nPrototipo\nPre series\nProducción\nImagen\nCliente\nNinguno\nCliente sintético\nEstatus\nDescripción\nTecnologías\n\nNo hay tecnologías asignadas."
+    },
+    {
+      "route": "/flowcharts/1",
+      "ms": 2163,
+      "title": "APG DMS — Document Management System",
+      "text": "LE\tCARACT. CRÍTICA\tSÍMBOLO\tPRODUCT CHARACTERISTICS\tPROCESS CHARACTERISTICS\tTARGET\tACCIONES\n\n\t\n10\n\t\nInspección\n\t\nSeleccionar Maquinaria...\n\t\t\nCalidad\n\t\n—\n\t\nOperación\n\t\t\t\t\nAgregar Paso\nCambios guardados"
+    },
+    {
+      "route": "/pfmea",
+      "ms": 1442,
+      "title": "APG DMS — Document Management System",
+      "text": " v1\nCREADO:\n14 oct 2026, 10:56 p.m.\nMODIFICADO:\n14 oct 2026, 10:56 p.m.\nBORRADOR\nEnsayo 100 filas\n\nCliente sintético\n\nQA-001\n#1 • v1\nCREADO:\n14 oct 2026, 10:56 p.m.\nMODIFICADO:\n14 oct 2026, 11:28 p.m."
+    },
+    {
+      "route": "/control-plans",
+      "ms": 1301,
+      "title": "APG DMS — Document Management System",
+      "text": ", 10:57 p.m.\nMODIFICADO:\n14 oct 2026, 10:57 p.m.\nDRAFT\nPlan de ensayo\n\nCliente sintético\n\nQA-CP-001\n1 característica crítica\n#1 • v1\nCREADO:\n14 oct 2026, 10:56 p.m.\nMODIFICADO:\n14 oct 2026, 10:56 p.m."
+    },
+    {
+      "route": "/admin/users",
+      "ms": 1274,
+      "title": "APG DMS — Document Management System",
+      "text": "CNICO\tVERIFICACIÓN\tESTADO DE ACCESO\tACCIONES\n\nAU\nAuditor sintético\nSin departamento\n\taudit@example.com\t\nAdministrator\nPFMEA Owner\nTeam Member\nViewer\nProcess Engineer\n\t\nVerificada\t\nActivo\t\nPlantas\n(Tú)"
+    },
+    {
+      "route": "/pfmea/1",
+      "rows": 100,
+      "collapsedMs": 2020,
+      "domNodes": 272
+    },
+    {
+      "rows": 100,
+      "expandedMs": 667,
+      "expandedDomNodes": 6908
+    },
+    {
+      "route": "/pfmea/2",
+      "rows": 500,
+      "collapsedMs": 1725,
+      "domNodes": 272
+    },
+    {
+      "rows": 500,
+      "expandedMs": 551,
+      "expandedDomNodes": 840
+    },
+    {
+      "rows": 500,
+      "lastRowReachable": true
+    },
+    {
+      "route": "/pfmea/3",
+      "rows": 1000,
+      "collapsedMs": 2017,
+      "domNodes": 272
+    },
+    {
+      "rows": 1000,
+      "expandedMs": 521,
+      "expandedDomNodes": 840
+    },
+    {
+      "rows": 1000,
+      "lastRowReachable": true
+    },
+    {
+      "layout": "AIAG_VDA",
+      "rows": 1000,
+      "domNodes": 1408,
+      "renderWaitMs": 13
+    },
+    {
+      "layout": "AIAG_VDA",
+      "lastRowReachable": true
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "url": "http://localhost:8014/api/v1/auth/csrf",
+      "status": 401
+    },
+    {
+      "url": "http://localhost:8014/api/v1/auth/csrf",
+      "status": 401
+    }
+  ]
+}

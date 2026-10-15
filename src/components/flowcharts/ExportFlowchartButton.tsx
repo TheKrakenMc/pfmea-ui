@@ -1,3 +1,4 @@
+import type {TFunction} from 'i18next';
 // ─────────────────────────────────────────────────────────────
 //  ExportFlowchartButton — Silent PDF Download Trigger
 //  Generates a FIN-05 process flow diagram PDF using html2pdf.js
@@ -13,7 +14,7 @@ import React, { useState, useCallback } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFlowchart } from '../../hooks/useFlowchart';
-import { useAuth } from '../../context/AuthContext';
+import {useAuth} from '../../hooks/useAuth';
 import { listMachinery } from '../../services/machineryService';
 import { listLocations } from '../../services/locationService';
 import axiosClient from '../../api/axiosClient';
@@ -55,7 +56,7 @@ function resolveLocation(
   step: FlowchartStep,
   machineryMap: Map<number, Machinery>,
   locationMap: Map<number, ManufacturingLocation>,
-  t: (key: string, defaultValue?: string | object) => string
+  t: TFunction
 ): string {
   // If the step has an assigned machinery with a location_id, resolve from locationMap
   if (step.machineryId) {
@@ -85,7 +86,7 @@ function resolveLocation(
 function resolveMachinery(
   step: FlowchartStep,
   machineryMap: Map<number, Machinery>,
-  t: (key: string, defaultValue?: string | object) => string
+  t: TFunction
 ): string {
   if (step.machineryId) {
     const machine = machineryMap.get(step.machineryId);
@@ -101,7 +102,7 @@ function resolveMachinery(
 function buildSignatures(
   users: UserRead[],
   currentUserName: string | null,
-  t: (key: string, defaultValue?: string | object) => string
+  t: TFunction
 ): FlowchartPdfSignature[] {
   // "Elaboró" → current logged-in user (the one exporting)
   const elaboroName = currentUserName || 'N/A';
@@ -145,7 +146,7 @@ function buildSignatures(
 }
 
 /** Maps a system role_name to a human-readable job title for the PDF */
-function mapRoleToTitle(roleName: string, t: (key: string, defaultValue?: string | object) => string): string {
+function mapRoleToTitle(roleName: string, t: TFunction): string {
   switch (roleName.toLowerCase()) {
     case 'administrator':
     case 'admin':
@@ -167,6 +168,7 @@ function buildPdfData(
   header: {
     projectId?: string | number;
     partNumber: string;
+    safetyCharacteristic?: string;
     customer: string;
     partName: string;
     lastModified: string;
@@ -179,7 +181,7 @@ function buildPdfData(
   machineryMap: Map<number, Machinery>,
   locationMap: Map<number, ManufacturingLocation>,
   signatures: FlowchartPdfSignature[],
-  t: (key: string, defaultValue?: string | object) => string
+  t: TFunction
 ): FlowchartPdfData {
   // Pad the ID to 3 digits
   const rawId = header.projectId ? String(header.projectId) : '1';
@@ -205,6 +207,15 @@ function buildPdfData(
 
   // Rows — enriched with real machinery and location data
   const pdfRows: FlowchartPdfRow[] = steps.map((step) => {
+    const isSub = (step.subStep || 0) > 0;
+    let masterSymbol = step.symbolType;
+    if (isSub) {
+      const master = steps.find(s => s.sequence === step.sequence && (!s.subStep || s.subStep === 0));
+      if (master) {
+        masterSymbol = master.symbolType;
+      }
+    }
+
     const deptCol = getDepartmentColumn(step.responsibleDepartment || '');
     const symbols: FlowchartPdfRow['symbols'] = {
       calidad: null,
@@ -213,16 +224,23 @@ function buildPdfData(
       materiales: null,
       otros: null,
     };
-    symbols[deptCol] = step.symbolType;
+    symbols[deptCol] = masterSymbol;
 
     return {
       stepNumber: step.sequence,
-      description: step.operationName || t('export.flowchart.rows.defaultStepDescription', { defaultValue: `Paso ${step.sequence}`, sequence: step.sequence }),
+      subStep: step.subStep || 0,
+      description: isSub
+        ? ''
+        : (step.operationName || t('export.flowchart.rows.defaultStepDescription', { defaultValue: `Paso ${step.sequence}`, sequence: step.sequence })),
       location: resolveLocation(step, machineryMap, locationMap, t),
-      hic: (step.criticalFlag === 'CC' || (step.criticalFlag === '' && step.isCritical))
-        ? (header.safetyCharacteristic || 'CC')
-        : (step.criticalFlag === 'SC' ? '@' : ''),
+      hic: (step.criticalFlag === 'CC' || step.criticalFlag === 'SC' || (step.criticalFlag === 'none' && step.isCritical))
+        ? '@'
+        : '',
       symbols,
+      masterSymbolType: masterSymbol,
+      productCharacteristics: step.productCharacteristics || '',
+      processCharacteristics: step.processCharacteristics || '',
+      target: step.target || '',
       norma: t('export.flowchart.rows.defaultNorma', 'No Aplica'),
       maquinaria: resolveMachinery(step, machineryMap, t),
     };
@@ -342,7 +360,7 @@ export const ExportFlowchartButton: React.FC<ExportFlowchartButtonProps> = ({
 
       // ─── 4. Invoke jsPDF Generator ─────────────────────────────
       const blob = await generateFlowchartPdf(pdfData, t);
-      
+
       // Resolve filename
       const docNumber = state.header.partNumber?.replace(/[^0-9]/g, '') || '1674201002';
       const revision = state.header.revision || '1';

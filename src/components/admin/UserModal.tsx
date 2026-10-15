@@ -1,11 +1,12 @@
+import type { Resolver } from 'react-hook-form';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UserPlus, Mail, Lock, Briefcase, Building, Building2, Wand2 } from 'lucide-react';
+import { X, UserPlus, Mail, Lock, Building2, Wand2 } from 'lucide-react';
 import { departmentService, type Department } from '../../api/departmentService';
 import { DepartmentCatalogModal } from './DepartmentCatalogModal';
 
@@ -27,27 +28,27 @@ interface UserModalProps {
 
 export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, userToEdit }) => {
   const { t } = useTranslation();
-  
+
   const schema = yup.object().shape({
     full_name: yup.string().required('El nombre es requerido'),
     email: yup.string().email('Correo inválido').required('El correo es requerido'),
     password: yup.string().when('$isEditing', (isEditing, schema) => {
-      return isEditing ? schema.notRequired() : schema.required('La contraseña es requerida').min(6, 'Mínimo 6 caracteres');
+      return isEditing ? schema.notRequired() : schema.required('La contraseña es requerida').min(8, 'Mínimo 8 caracteres').max(72, 'Máximo 72 caracteres');
     }),
     role_name: yup.string().required('El rol es requerido'),
     department_id: yup.string().optional(),
     employment_position: yup.string().optional(),
   });
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting, dirtyFields } } = useForm<UserFormData>({
-    resolver: yupResolver(schema) as any,
+  const { register, handleSubmit, reset, control, setValue, formState: { errors, isSubmitting, dirtyFields } } = useForm<UserFormData>({
+    resolver: yupResolver(schema) as Resolver<UserFormData>,
     context: { isEditing: !!userToEdit }
   });
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
 
-  const fullNameValue = watch('full_name');
+  const fullNameValue = useWatch({control,name:'full_name'});
 
   useEffect(() => {
     if (fullNameValue && !dirtyFields.email && !userToEdit) {
@@ -65,18 +66,10 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, u
     }
   }, [fullNameValue, dirtyFields.email, userToEdit, setValue]);
 
-  const loadDepartments = async () => {
-    try {
-      const data = await departmentService.list();
-      setDepartments(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   useEffect(() => {
     if (isOpen) {
-      loadDepartments();
+      departmentService.list().then(setDepartments).catch(console.error);
     }
   }, [isOpen, isDeptModalOpen]);
 
@@ -117,7 +110,7 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, u
     try {
       await onSave(data);
       onClose();
-    } catch (err) {
+    } catch {
       // Error handling is managed by the parent
     }
   };
@@ -283,9 +276,9 @@ export const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, u
           </form>
         </motion.div>
       </div>
-      <DepartmentCatalogModal 
-        isOpen={isDeptModalOpen} 
-        onClose={() => setIsDeptModalOpen(false)} 
+      <DepartmentCatalogModal
+        isOpen={isDeptModalOpen}
+        onClose={() => setIsDeptModalOpen(false)}
       />
     </AnimatePresence>
   );

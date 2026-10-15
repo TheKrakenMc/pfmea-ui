@@ -10,9 +10,9 @@ interface DeleteCustomerConfirmationProps {
   isDeleting?: boolean;
 }
 
-const DeleteCustomerConfirmation: React.FC<DeleteCustomerConfirmationProps> = ({ 
-  customer, 
-  onClose, 
+const DeleteCustomerConfirmation: React.FC<DeleteCustomerConfirmationProps> = ({
+  customer,
+  onClose,
   onConfirm,
   isDeleting = false
 }) => {

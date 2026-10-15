@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 export interface PfmeaPdfHeader {
+  processResponsible?: string;
   pfmeaNumber: string;
   partNumber: string;
   description: string;
@@ -59,4 +60,51 @@ export interface PfmeaPdfData {
   footerRevision: string;
   printDate: string;
   revisionDate: string;
+}
+
+export interface CorporateApgHeader {
+  item: string;
+  processResponsibility: string;
+  pfmeaNumber: string;
+  modelYear: string;
+  keyDate: string;
+  preparedBy: string;
+  customerPartNumber: string;
+  supplierPartNumber: string;
+  coreTeam: string;
+  fmeaDateOrig: string;
+  fmeaDateRev: string;
+  specialDocumentControl: string;
+}
+
+export interface CorporateApgRow {
+  isBanner?: boolean;
+  operationBanner?: string;
+  processRequirements: string;
+  potentialFailureMode: string;
+  potentialEffects: string;
+  severity: number | '';
+  classification: string;
+  potentialCauses: string;
+  occurrence: number | '';
+  currentPreventionControls: string;
+  currentDetectionControls: string;
+  detection: number | '';
+  actionPriority: string; // HIGH, MEDIUM, LOW
+  rpn: number | '';
+  recommendedActions: string;
+  responsibleAndTargetDate: string;
+  actionsTaken: string;
+  newSeverity: number | '';
+  newOccurrence: number | '';
+  newDetection: number | '';
+  newRpn?: number | '';
+  newActionPriority: string;
+  originalRowId?: number;
+}
+
+export interface CorporateApgPdfData {
+  header: CorporateApgHeader;
+  rows: CorporateApgRow[];
+  formCode: string;
 }

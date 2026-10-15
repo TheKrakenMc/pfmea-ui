@@ -1,13 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDeleteTechnology } from '../../hooks/useTechnology';
-import { Zap, Edit, Trash2, Search, ChevronDown, ChevronRight, BarChart2, ShieldAlert, Cpu, Settings2 } from 'lucide-react';
-import TechnologyForm from './TechnologyForm';
-import DeleteConfirmation from './DeleteConfirmation';
+import { Edit, Trash2, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import type { Technology } from '../../types/technology.types';
 import { formatDate } from '../../utils/dateUtils';
 
-const CATEGORIES = ['Inyección', 'Ensamble', 'Torque', 'Soldadura', 'Estampado', 'Pintura', 'Corte', 'Tratamiento Térmico'];
 
 interface TechnologyTableProps {
   technologies: Technology[];
@@ -28,16 +24,7 @@ const TechnologyTable: React.FC<TechnologyTableProps> = ({ technologies, onEdit,
   };
 
   // KPIs
-  const totalCC = useMemo(() => {
-    return technologies.reduce((count, tech) => {
-      return count + (tech.parameters?.filter((p) => p.is_critical).length ?? 0);
-    }, 0);
-  }, [technologies]);
 
-  const activeCategoriesCount = useMemo(() => {
-    const cats = new Set(technologies.map((t) => t.category).filter(Boolean));
-    return cats.size;
-  }, [technologies]);
 
   return (
     <div className="space-y-6">

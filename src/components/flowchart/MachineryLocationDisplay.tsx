@@ -17,14 +17,14 @@ interface MachineryLocationDisplayProps {
 export function MachineryLocationDisplay({ machineryId }: MachineryLocationDisplayProps) {
   const { t } = useTranslation();
   const [locationName, setLocationName] = useState<string>('');
-  
+
   useEffect(() => {
     async function fetchLocation() {
       if (!machineryId) {
         setLocationName('');
         return;
       }
-      
+
       try {
         if (!fetchPromise) {
           fetchPromise = Promise.all([
@@ -32,9 +32,9 @@ export function MachineryLocationDisplay({ machineryId }: MachineryLocationDispl
             locationCache ? Promise.resolve() : listLocations().then(l => { locationCache = l; })
           ]).then(() => {});
         }
-        
+
         await fetchPromise;
-        
+
         const machine = machineryCache?.find(m => m.id === machineryId);
         if (machine && machine.location_id) {
           const loc = locationCache?.find(l => l.id === machine.location_id);
@@ -47,7 +47,7 @@ export function MachineryLocationDisplay({ machineryId }: MachineryLocationDispl
         setLocationName('');
       }
     }
-    
+
     fetchLocation();
   }, [machineryId]);
 
@@ -56,8 +56,8 @@ export function MachineryLocationDisplay({ machineryId }: MachineryLocationDispl
       type="text"
       readOnly
       value={locationName}
-      placeholder={t('table.locationPlaceholder', 'Ubicación...')}
-      className="focus-ring w-full rounded-lg border border-steel-600 bg-steel-800/50 px-3 py-2 text-left text-sm text-steel-300 cursor-not-allowed outline-none"
+      placeholder={t('table.locationPlaceholder', 'ATHENS')}
+      className="w-full rounded-lg border border-slate-200 dark:border-steel-700/60 bg-slate-100 dark:bg-steel-800/60 px-3 py-2 text-left text-xs font-mono font-bold text-slate-700 dark:text-steel-300 cursor-not-allowed outline-none uppercase shadow-2xs"
     />
   );
 }

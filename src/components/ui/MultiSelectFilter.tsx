@@ -52,8 +52,8 @@ export const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors cursor-pointer ${
-          hasSelection 
-            ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' 
+          hasSelection
+            ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
             : 'bg-steel-950 border-steel-700 text-steel-300 hover:bg-steel-900 hover:text-steel-100'
         }`}
       >

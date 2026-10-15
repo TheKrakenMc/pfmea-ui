@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import {PlantAssignmentModal} from '../../components/admin/PlantAssignmentModal';
+import {useQuery} from '@tanstack/react-query';
+import { getErrorMessage } from '../../utils/errors';
+import React, { useState } from 'react';
 import axiosClient from '../../api/axiosClient';
-import { useAuth } from '../../context/AuthContext';
+import {useAuth} from '../../hooks/useAuth';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { Users, Edit, UserX, UserCheck, Mail, Key } from 'lucide-react';
+import { Users, Edit, UserX, UserCheck } from 'lucide-react';
 import { UserModal, type UserFormData } from '../../components/admin/UserModal';
-import { departmentService, type Department } from '../../api/departmentService';
+import { departmentService } from '../../api/departmentService';
 
 interface User {
   id: string;
@@ -21,41 +24,22 @@ interface User {
 export const UserManagementPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const { t } = useTranslation();
-  const [users, setUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [plantTarget,setPlantTarget]=useState<string|null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
   // Check if current user is an Administrator
-  const isAdmin = currentUser?.role_name?.toLowerCase() === 'administrator' || 
+  const isAdmin = currentUser?.role_name?.toLowerCase() === 'administrator' ||
                   currentUser?.role_name?.toLowerCase() === 'admin';
 
-  const fetchUsers = async () => {
-    try {
-      setIsLoading(true);
-      const [usersRes, deptsRes] = await Promise.all([
-        axiosClient.get<User[]>('/users'),
-        departmentService.list()
-      ]);
-      setUsers(usersRes.data);
-      setDepartments(deptsRes);
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || t('admin.users.errors.loadFailedDesc', 'No se pudieron cargar los usuarios. Verifica tus permisos.');
-      toast.error(t('admin.users.errors.loadFailed', 'Error al cargar datos'), { description: errMsg });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [isAdmin]);
+  const {data:loaded,isLoading,refetch} = useQuery({queryKey:['admin-users'],enabled:isAdmin,queryFn:async()=>{const [usersRes,deptsRes]=await Promise.all([axiosClient.get<User[]>('/users'),departmentService.list()]);return {users:usersRes.data,departments:deptsRes};}});
+  const users=loaded?.users ?? [];
+  const departments=loaded?.departments ?? [];
+  const fetchUsers=async()=>{await refetch();};
 
   const handleRoleChange = async (userId: string, newRoleName: string) => {
     setIsUpdating(userId);
@@ -67,69 +51,16 @@ export const UserManagementPage: React.FC = () => {
         description: t('admin.users.success.roleUpdatedDesc', 'Se ha reasignado el rol técnico a {{role}} correctamente.', { role: newRoleName })
       });
       fetchUsers();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || t('admin.users.errors.updateRole', 'Error al actualizar rol');
+    } catch (err: unknown) {
+      const errMsg = getErrorMessage(err) || t('admin.users.errors.updateRole', 'Error al actualizar rol');
       toast.error(t('admin.users.errors.updateRole', 'Error al actualizar rol'), { description: errMsg });
     } finally {
       setIsUpdating(null);
     }
   };
 
-  const handleStatusToggle = async (userId: string, currentStatus: boolean, fullName: string) => {
-    if (userId === currentUser?.id) {
-      toast.error(t('admin.users.errors.restrictedAccess', 'Acceso denegado'), { description: t('admin.users.errors.selfDeactivate', 'No puedes desactivar tu propia cuenta de administrador.') });
-      return;
-    }
 
-    setIsUpdating(userId);
-    const newStatus = !currentStatus;
-    try {
-      await axiosClient.put(`/users/${userId}/status`, {
-        is_active: newStatus
-      });
-      
-      const actionText = newStatus ? t('admin.users.actions.reactivate', 'reactivado') : t('admin.users.status.archived', 'archivado (desactivado)');
-      toast.success(t('admin.users.success.statusUpdated', 'Usuario {{status}}', { status: newStatus ? t('admin.users.status.active', 'Activo') : t('admin.users.status.archived', 'Archivado') }), {
-        description: t('admin.users.success.statusUpdatedDesc', 'El usuario se ha {{action}} con éxito.', { action: actionText })
-      });
-      fetchUsers();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || t('admin.users.errors.updateStatus', 'Error de actualización');
-      toast.error(t('admin.users.errors.updateStatus', 'Error de actualización'), { description: errMsg });
-    } finally {
-      setIsUpdating(null);
-    }
-  };
 
-  const handleResendVerification = async (userId: string) => {
-    setIsUpdating(userId);
-    try {
-      await axiosClient.post(`/users/${userId}/resend-verification`);
-      toast.success(t('admin.users.success.verificationResent', 'Enlace reenviado'), {
-        description: t('admin.users.success.verificationResentDesc', 'Se ha enviado un nuevo enlace de verificación (válido por 24h).')
-      });
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || t('admin.users.errors.resendVerification', 'Error al reenviar el enlace');
-      toast.error(t('admin.users.errors.resendVerification', 'Error al reenviar el enlace'), { description: errMsg });
-    } finally {
-      setIsUpdating(null);
-    }
-  };
-
-  const handleResetPassword = async (userId: string, userEmail: string) => {
-    setIsUpdating(userId);
-    try {
-      await axiosClient.post('/users/reset-password-request', { email: userEmail });
-      toast.success(t('admin.users.success.passwordReset', 'Contraseña restablecida'), {
-        description: t('admin.users.success.passwordResetDesc', 'Se ha enviado un correo al usuario con la nueva contraseña temporal.')
-      });
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || t('admin.users.errors.passwordReset', 'Error al restablecer contraseña');
-      toast.error(t('admin.users.errors.passwordReset', 'Error al restablecer contraseña'), { description: errMsg });
-    } finally {
-      setIsUpdating(null);
-    }
-  };
 
   const handleSaveUser = async (data: UserFormData) => {
     try {
@@ -147,22 +78,27 @@ export const UserManagementPage: React.FC = () => {
         });
       }
       fetchUsers();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.detail || 'Error al procesar la solicitud.';
+    } catch (err: unknown) {
+      const errMsg = getErrorMessage(err) || 'Error al procesar la solicitud.';
       toast.error('Error', { description: errMsg });
       throw err;
     }
   };
 
+  const handleEditUser = (user: User) => { setUserToEdit(user); setIsModalOpen(true); };
+  const changeStatus = async (user: User, active: boolean) => {
+    setIsUpdating(user.id);
+    try { await axiosClient.put('/users/' + user.id + '/status', {is_active:active}); await fetchUsers(); }
+    catch (error) { toast.error(getErrorMessage(error,'No se pudo cambiar el estado del usuario')); }
+    finally { setIsUpdating(null); }
+  };
+  const handleOpenDeleteModal = (user: User) => changeStatus(user,false);
+  const handleRestoreUser = (user: User | string) => { const target=typeof user === "string" ? users.find(u=>u.id===user) : user; if(target) return changeStatus(target,true); };
   const openCreateModal = () => {
     setUserToEdit(null);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (user: User) => {
-    setUserToEdit(user);
-    setIsModalOpen(true);
-  };
 
   if (!isAdmin) {
     return (
@@ -182,7 +118,7 @@ export const UserManagementPage: React.FC = () => {
 
   return (
     <div className="flex-1 bg-transparent p-6 md:p-8 min-h-screen text-steel-100 transition-colors max-w-7xl mx-auto w-full">
-      
+
       {/* Dashboard Title Section */}
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -194,7 +130,7 @@ export const UserManagementPage: React.FC = () => {
             {t('admin.users.subtitle', 'Administración de accesos, roles de trabajo y auditoría de personal de la planta APG Puebla.')}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3 mt-4 sm:mt-0">
           <button
             onClick={openCreateModal}
@@ -205,7 +141,7 @@ export const UserManagementPage: React.FC = () => {
             </svg>
             {t('admin.users.addUser', 'Añadir Usuario')}
           </button>
-          
+
           <button
             onClick={fetchUsers}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-steel-300 bg-steel-900 border border-steel-700 hover:bg-steel-800 transition-colors whitespace-nowrap"
@@ -253,8 +189,8 @@ export const UserManagementPage: React.FC = () => {
                     const isArchived = !u.is_active;
 
                     return (
-                      <tr 
-                        key={u.id} 
+                      <tr
+                        key={u.id}
                         className={`hover:bg-steel-800/30 transition-colors group ${
                           isArchived ? 'opacity-65' : ''
                         }`}
@@ -263,8 +199,8 @@ export const UserManagementPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold border ${
-                              isArchived 
-                                ? 'bg-steel-800/50 text-steel-500 border-steel-700' 
+                              isArchived
+                                ? 'bg-steel-800/50 text-steel-500 border-steel-700'
                                 : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
                             }`}>
                               {u.full_name ? u.full_name.replace("ARCHIVED ", "").slice(0, 2).toUpperCase() : 'US'}
@@ -281,7 +217,7 @@ export const UserManagementPage: React.FC = () => {
                                 )}
                               </div>
                               <div className="text-xs text-steel-500 dark:text-steel-400 mt-0.5">
-                                {u.department_id 
+                                {u.department_id
                                   ? departments.find(d => d.id.toString() === u.department_id)?.name || t('admin.users.noDepartment', 'Sin departamento')
                                   : t('admin.users.noDepartment', 'Sin departamento')
                                 }
@@ -307,14 +243,15 @@ export const UserManagementPage: React.FC = () => {
                             <option value="PFMEA Owner">PFMEA Owner</option>
                             <option value="Team Member">Team Member</option>
                             <option value="Viewer">Viewer</option>
+                            <option value="Process Engineer">Process Engineer</option>
                           </select>
                         </td>
 
                         {/* Verification Badge */}
                         <td className="px-6 py-4 text-center whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border ${
-                            u.is_verified 
-                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' 
+                            u.is_verified
+                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
                               : 'bg-amber-500/20 text-amber-400 border-amber-500/50'
                           }`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${u.is_verified ? 'bg-blue-400' : 'bg-amber-400'}`}></span>
@@ -325,8 +262,8 @@ export const UserManagementPage: React.FC = () => {
                         {/* Active Status Badge */}
                         <td className="px-6 py-4 text-center whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border ${
-                            u.is_active 
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' 
+                            u.is_active
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
                               : 'bg-slate-500/20 text-slate-400 border-slate-500/50'
                           }`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${u.is_active ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
@@ -337,6 +274,7 @@ export const UserManagementPage: React.FC = () => {
                         {/* Actions */}
                         <td className="px-6 py-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={()=>setPlantTarget(u.id)} className="p-1.5 underline" title="Asignar plantas">Plantas</button>
                             {!isArchived && (
                               <button
                                 onClick={() => handleEditUser(u)}
@@ -346,7 +284,7 @@ export const UserManagementPage: React.FC = () => {
                                 <Edit className="w-4 h-4" />
                               </button>
                             )}
-                            
+
                             {!isSelf && !isArchived && (
                               <button
                                 onClick={() => handleOpenDeleteModal(u)}
@@ -366,7 +304,7 @@ export const UserManagementPage: React.FC = () => {
                                 <UserCheck className="w-4 h-4" />
                               </button>
                             )}
-                            
+
                             {isSelf && (
                               <span className="text-xs text-steel-500 italic px-2">
                                 {t('admin.users.status.current', '(Tú)')}
@@ -385,6 +323,7 @@ export const UserManagementPage: React.FC = () => {
       )}
 
       {/* User Modal */}
+      {plantTarget&&<PlantAssignmentModal userId={plantTarget} onClose={()=>setPlantTarget(null)}/>}
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

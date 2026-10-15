@@ -8,7 +8,6 @@ import type { Technology, ProductCreatePayload } from '../../types/product.types
 import type { Customer } from '../../types/customer.types';
 import { TechnologyMultiSelect } from './TechnologyMultiSelect';
 import { toast } from 'sonner';
-import axiosClient from '../../api/axiosClient';
 import { productFamilyService, type ProductFamily } from '../../api/productFamilyService';
 import { productionLineService, type ProductionLine } from '../../api/productionLineService';
 import { ProductFamilyCatalogModal } from '../pfmea/ProductFamilyCatalogModal';
@@ -25,7 +24,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  
+
   const [formData, setFormData] = useState<ProductCreatePayload>({
     part_number: '',
     customer_part_number: '',
@@ -63,9 +62,18 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
 
   useEffect(() => {
     if (isOpen) {
-      loadCatalogs();
+      productFamilyService.list(true).then(setProductFamilies).catch(console.error);
+      productionLineService.list(true).then(setProductionLines).catch(console.error);
       listTechnologies().then(setTechnologies).catch(console.error);
       listCustomers().then(setCustomers).catch(console.error);
+
+    }
+  }, [isOpen]);
+
+  const [wasOpen,setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
       setFormData({
         part_number: '',
         customer_part_number: '',
@@ -86,7 +94,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
       setSelectedFile(null);
       setStep(1);
     }
-  }, [isOpen]);
+  }
 
   const handleNext = () => {
     if (!formData.part_number) {
@@ -111,7 +119,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
       toast.error(t('products.form.technologiesRequired', 'Debe seleccionar al menos una tecnología para el producto.'));
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       let finalImageUrl = formData.image_url;
@@ -119,12 +127,12 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
         const uploadRes = await uploadImage(selectedFile);
         finalImageUrl = uploadRes.filename;
       }
-      
+
       const payload = {
         ...formData,
         image_url: finalImageUrl,
       };
-      
+
       await createProduct(payload);
       toast.success(t('products.toast.createSuccess'));
       onSuccess();
@@ -208,7 +216,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-medium text-steel-100"
                             />
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 flex items-center gap-1.5 block mb-1.5">
                               <Hash size={12} /> {t('products.form.customerPartNumber')}
@@ -238,7 +246,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               ))}
                             </select>
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                               {t('product.stage', 'Etapa')}
@@ -273,7 +281,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               ))}
                             </select>
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                               {t('products.form.productionLine', 'Línea de Producción')}
@@ -304,7 +312,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-steel-100"
                             />
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                               {t('product.drawing', 'Dibujo')}
@@ -329,7 +337,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                             className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-1.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-steel-100 file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer file:font-semibold"
                           />
                         </div>
-                        
+
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 flex items-center gap-1.5 block mb-1.5">
                             <Factory size={12} /> {t('products.form.description')}
@@ -357,7 +365,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                           <Factory size={14} className="text-indigo-400" />
                           {t('products.step2.title', 'Especificaciones y Tecnologías')}
                         </h4>
-                        
+
                         <div className="grid grid-cols-2 gap-5">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
@@ -371,7 +379,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-steel-100"
                             />
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                               {t('products.form.weight', 'Peso (kg)')}
@@ -401,7 +409,7 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
                               className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-2.5 text-sm placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-medium text-steel-100"
                             />
                           </div>
-                          
+
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
                               {t('products.form.ratePerHour', 'Rate / Hora (pz/hr)')}
@@ -483,20 +491,20 @@ export const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ isOpen, 
               </div>
             </motion.div>
           </div>
-          
-          <ProductFamilyCatalogModal 
-            isOpen={isFamilyCatalogOpen} 
+
+          <ProductFamilyCatalogModal
+            isOpen={isFamilyCatalogOpen}
             onClose={() => {
               setIsFamilyCatalogOpen(false);
               loadCatalogs();
-            }} 
+            }}
           />
-          <ProductionLineCatalogModal 
-            isOpen={isLineCatalogOpen} 
+          <ProductionLineCatalogModal
+            isOpen={isLineCatalogOpen}
             onClose={() => {
               setIsLineCatalogOpen(false);
               loadCatalogs();
-            }} 
+            }}
           />
         </>
       )}

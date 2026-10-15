@@ -1,3 +1,4 @@
+import {useAuth} from '../../hooks/useAuth';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,22 +17,22 @@ import type { Customer } from '../../types/customer.types';
 
 const CustomersPage: React.FC = () => {
   const { t } = useTranslation();
+  const {user}=useAuth();
   const queryClient = useQueryClient();
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
 
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [search, setSearch] = useState('');
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
@@ -52,7 +53,7 @@ const CustomersPage: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: any }) => updateCustomer(id, data),
+    mutationFn: ({ id, data }: { id: number, data: Parameters<typeof updateCustomer>[1] }) => updateCustomer(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer updated successfully');
@@ -92,11 +93,12 @@ const CustomersPage: React.FC = () => {
     setEditingCustomer(null);
   };
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: Parameters<typeof createCustomer>[0] | Parameters<typeof updateCustomer>[1]) => {
     if (editingCustomer) {
       updateMutation.mutate({ id: editingCustomer.id, data });
     } else {
-      createMutation.mutate(data);
+      if (!data.company_name || !data.customer_code || !user?.plant_id) {toast.error('Nombre, código y planta son obligatorios');return;}
+      createMutation.mutate({...data,company_name:data.company_name,customer_code:data.customer_code,plant_id:user.plant_id});
     }
   };
 

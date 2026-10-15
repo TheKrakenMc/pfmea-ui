@@ -68,12 +68,12 @@ export const WelcomePage: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent overflow-hidden relative w-full h-full min-h-[calc(100vh-64px)]">
-      
+
       {/* Background Ambient Glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-forge-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-forge-400/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <motion.div 
+      <motion.div
         className="w-full max-w-7xl z-10 px-4"
         variants={containerVariants}
         initial="hidden"
@@ -110,15 +110,15 @@ export const WelcomePage: React.FC = () => {
               <div className={`w-14 h-14 rounded-2xl mb-8 flex items-center justify-center bg-gradient-to-br ${mod.color} shadow-lg`}>
                 <mod.icon className="w-7 h-7 text-white drop-shadow-md" />
               </div>
-              
+
               <h2 className="text-2xl font-bold mb-4 tracking-tight text-steel-100 dark:text-white group-hover:text-forge-600 dark:group-hover:text-forge-400 transition-colors">
                 {mod.title}
               </h2>
-              
+
               <p className="text-steel-400 dark:text-steel-600 leading-relaxed flex-grow">
                 {mod.description}
               </p>
-              
+
               <div className="flex items-center text-sm font-semibold text-steel-500 transition-colors mt-8 pt-6 border-t border-steel-800/50">
                 {t('welcome.getStarted')}
                 <ArrowRight className="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" />

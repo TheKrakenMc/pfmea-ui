@@ -66,7 +66,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
             <p className="text-red-400 text-xs mt-1.5">{errors.customer_code.message}</p>
           )}
         </div>
-        
+
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-steel-400 block mb-1.5">
             Status

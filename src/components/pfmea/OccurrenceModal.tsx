@@ -74,7 +74,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({ isOpen, onClos
             {/* Table Content */}
             <div className="overflow-y-auto p-4 flex-1 bg-slate-50">
               <div className="min-w-[800px] w-full border-collapse border border-slate-300 rounded-lg overflow-hidden shadow-sm bg-slate-50">
-                
+
                 {/* Headers */}
                 <div className="grid grid-cols-[60px_160px_1fr_2fr] bg-slate-800 text-white text-sm font-bold border-b border-slate-300 text-center">
                   <div className="p-3 border-r border-slate-700 flex items-center justify-center">
@@ -132,7 +132,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({ isOpen, onClos
                 </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="p-4 border-t border-slate-200 bg-slate-900 text-right">
               <span className="text-xs text-slate-400 font-medium">

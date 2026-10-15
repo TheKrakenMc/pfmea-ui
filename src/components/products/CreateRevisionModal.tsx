@@ -40,7 +40,7 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
         engineering_level: engineeringLevel.trim(),
       });
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating revision:', err);
       setError(t('productVersioning.errorCreatingRevision', 'Error al crear la nueva versión.'));
     } finally {

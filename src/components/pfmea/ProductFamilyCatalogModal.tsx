@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, X, Plus, Trash2, Edit2, Loader2, Save } from 'lucide-react';
-import { productFamilyService, type ProductFamily } from '../../api/productFamilyService';
+import { productFamilyService } from '../../api/productFamilyService';
 
 interface ProductFamilyCatalogModalProps {
   isOpen: boolean;
@@ -13,36 +14,16 @@ interface ProductFamilyCatalogModalProps {
 export const ProductFamilyCatalogModal: React.FC<ProductFamilyCatalogModalProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
-  const [families, setFamilies] = useState<ProductFamily[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: families = [], isLoading, refetch } = useQuery({queryKey: ['families', 'catalog'], queryFn: () => productFamilyService.list(false), enabled: isOpen});
   const [isPending, setIsPending] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const loadFamilies = async () => {
-    try {
-      setIsLoading(true);
-      const data = await productFamilyService.list(false);
-      setFamilies(data);
-    } catch (error) {
-      console.error("Failed to load product families", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      loadFamilies();
-      setEditingId(null);
-      setIsAdding(false);
-      setNewName('');
-    }
-  }, [isOpen]);
+  const loadFamilies = async () => { await refetch(); };
 
   const handleEdit = (id: number, name: string) => {
     setEditingId(id);
@@ -56,13 +37,9 @@ export const ProductFamilyCatalogModal: React.FC<ProductFamilyCatalogModalProps>
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(sortedFamilies.length / ITEMS_PER_PAGE);
-  const paginatedFamilies = sortedFamilies.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginatedFamilies = sortedFamilies.slice((Math.min(currentPage, Math.max(1, totalPages)) - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
+
 
   const handleSaveEdit = async (id: number) => {
     if (!editName.trim()) return;
@@ -286,4 +263,3 @@ export const ProductFamilyCatalogModal: React.FC<ProductFamilyCatalogModalProps>
     document.body
   );
 };
-

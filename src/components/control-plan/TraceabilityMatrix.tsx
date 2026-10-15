@@ -1,0 +1,8 @@
+import {Link} from 'react-router-dom';
+import type {ControlPlan} from '../../api/controlPlanService';
+import type {WorksheetRow} from '../../api/pfmeaService';
+
+export function TraceabilityMatrix({plan,rows}:{plan:ControlPlan;rows:WorksheetRow[]}){
+ const byId=new Map(rows.map(row=>[row.id,row]));
+ return <details className="border border-steel-300 dark:border-steel-700 rounded-xl p-4 mx-6 my-4"><summary className="cursor-pointer font-semibold">Trazabilidad por operación y riesgo</summary><div className="overflow-auto mt-4"><table className="w-full text-sm text-left"><thead><tr>{['Operación','Paso de diagrama','Fila PFMEA','S/O/D/AP','Control / característica','Origen y revisión'].map(label=><th key={label} className="p-2">{label}</th>)}</tr></thead><tbody>{plan.items.map(item=>{const row=item.pfmea_worksheet_row_id ? byId.get(item.pfmea_worksheet_row_id):undefined;return <tr key={item.id} className="border-t border-steel-300 dark:border-steel-700"><td className="p-2">{row?.station_operation || 'Fuente histórica o no vinculada'}</td><td className="p-2">{row?.flowchart_step_id || '—'}</td><td className="p-2"><Link to={'/pfmea/'+plan.pfmea_project_id} className="underline">{item.pfmea_worksheet_row_id || item.source_row_id || 'Sin resolver'}</Link></td><td className="p-2">{row?[row.severity,row.occurrence,row.detection,row.action_priority].map(v=>v??'—').join(' / '):'No vigente'}</td><td className="p-2">#{item.id} — {item.characteristic || 'Sin característica'} ({item.classification || '—'})</td><td className="p-2">{item.is_active===false?'Retirado':item.needs_review?'Revisión humana pendiente':item.source_reviewed?'Decisión humana registrada':'Confirmado por ID'}</td></tr>;})}</tbody></table></div></details>;
+}

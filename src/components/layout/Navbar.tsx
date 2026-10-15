@@ -1,3 +1,5 @@
+import {useQuery} from '@tanstack/react-query';
+import {listPlants} from '../../services/plantService';
 {
   /* Main Links */
 }
@@ -11,7 +13,6 @@ import {
   Box,
   Package,
   Wrench,
-  Settings,
   UserCircle,
   Sun,
   Moon,
@@ -22,8 +23,8 @@ import {
   MapPin,
   Ruler,
 } from "lucide-react";
-import { useTheme } from "../../context/ThemeContext";
-import { useAuth } from "../../context/AuthContext";
+import {useTheme} from '../../hooks/useTheme';
+import {useAuth} from '../../hooks/useAuth';
 import Drawer from "./Drawer";
 
 export const Navbar: React.FC = () => {
@@ -35,7 +36,8 @@ export const Navbar: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { user, logout } = useAuth();
+  const { user, logout, selectPlant } = useAuth();
+  const {data:plants=[]}=useQuery({queryKey:['plants','authorized'],queryFn:listPlants,enabled:!!user});
   const userRole = user?.role_name?.toLowerCase() || "";
   const isAdmin = userRole === "administrator" || userRole === "admin";
 
@@ -109,6 +111,11 @@ export const Navbar: React.FC = () => {
     <nav className="glass-card sticky top-0 z-50 border-b border-steel-800 bg-steel-950/80">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+          {user && user.plant_ids.length > 0 && (
+            <select aria-label="Planta activa" value={user.plant_id || ''} onChange={e => selectPlant(Number(e.target.value))} className="rounded-lg bg-steel-900 text-steel-100 px-2 py-1 text-sm">
+              {user.plant_ids.map(id => <option key={id} value={id}>{plants.find(p=>p.id===id)?.name || `Planta ${id}`}</option>)}
+            </select>
+          )}
           {/* Logo & Main Navigation */}
           <div className="flex items-center gap-8">
             {/* APG Stylized Logo */}
@@ -134,6 +141,10 @@ export const Navbar: React.FC = () => {
 
               <NavLink to="/pfmea" className={navLinkClasses}>
                 {t("navbar.pfmea")}
+              </NavLink>
+
+              <NavLink to="/control-plans" className={navLinkClasses}>
+                {t("navbar.controlPlan", "Plan de Control")}
               </NavLink>
 
               {/* Auxiliaries Dropdown */}

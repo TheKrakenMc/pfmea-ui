@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Edit2, Trash2, Mail } from 'lucide-react';
+import { Building2, Trash2, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Customer } from '../../types/customer.types';
 
@@ -32,7 +32,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onEdit, on
                 : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
             }`}
           >
-            {t(`admin.status.${customer.status?.toLowerCase() || 'inactive'}`, customer.status)}
+            {t(`admin.status.${customer.status?.toLowerCase() || 'inactive'}`, customer.status || '')}
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(customer); }}

@@ -7,28 +7,27 @@
 
 export interface Technology {
   id: number;
-  code: string;
   name: string;
+  code?: string | null;
   category?: string;
   description?: string;
   is_active: boolean;
-  suggested_parameters?: Record<string, any>;
+  suggested_parameters?: Record<string, unknown>;
   plant_ids?: number[];
   created_by?: number;
   updated_by?: number;
   created_at: string;
   updated_at?: string | null;
-  parameters?: any[];
+  parameters?: import('../services/technologyService').TechnologyParameter[];
 }
 
 export interface TechnologyCreatePayload {
-  code: string;
+  code?: string;
   name: string;
   category?: string;
   description?: string;
-  suggested_parameters?: Record<string, any>;
+  suggested_parameters?: Record<string, unknown>;
   plant_ids?: number[];
-  is_active?: boolean;
   is_active?: boolean;
 }
 
@@ -37,7 +36,7 @@ export interface TechnologyUpdatePayload {
   name?: string;
   category?: string;
   description?: string;
-  suggested_parameters?: Record<string, any>;
+  suggested_parameters?: Record<string, unknown>;
   is_active?: boolean;
 }
 

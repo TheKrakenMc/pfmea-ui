@@ -1,8 +1,10 @@
+import {VerifyEmailPage} from '../pages/VerifyEmailPage';
+import {ChangePasswordPage} from '../pages/ChangePasswordPage';
 import React, { Suspense } from "react";
 import { Routes, Route, useLocation, Navigate, Outlet } from "react-router-dom";
 import { MainLayout } from "../components/layout/MainLayout";
 import { AnimatePresence } from "framer-motion";
-import { useAuth } from "../context/AuthContext";
+import {useAuth} from '../hooks/useAuth';
 import { useTranslation } from "react-i18next";
 
 // Lazy loading pages for performance optimization
@@ -34,6 +36,11 @@ const PFMEADashboard = React.lazy(() =>
 const PFMEAEditorPage = React.lazy(() =>
   import("../pages/pfmea/PFMEAEditorPage").then((module) => ({
     default: module.PFMEAEditorPage,
+  })),
+);
+const ControlPlanPage = React.lazy(() =>
+  import("../pages/control-plan/ControlPlanPage").then((module) => ({
+    default: module.ControlPlanPage,
   })),
 );
 const CustomersPage = React.lazy(
@@ -114,6 +121,8 @@ const ProtectedRoute: React.FC<{ allowedRoles?: string[] }> = ({
     return <Navigate to="/login" replace />;
   }
 
+  if (user?.must_change_password) return <ChangePasswordPage />;
+
   if (allowedRoles) {
     const userRole = user?.role_name?.toLowerCase();
     const hasRole = allowedRoles.some(
@@ -168,6 +177,7 @@ export const AppRoutes: React.FC = () => {
         <Routes location={location} key={location.pathname}>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Secure Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -184,6 +194,10 @@ export const AppRoutes: React.FC = () => {
               <Route path="pfmea">
                 <Route index element={<PFMEADashboard />} />
                 <Route path=":id" element={<PFMEAEditorPage />} />
+              </Route>
+
+              <Route path="control-plans">
+                <Route index element={<ControlPlanPage />} />
               </Route>
 
               {/* Product Module Routes */}

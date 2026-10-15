@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Copy, Archive, History, FileText, Hash } from 'lucide-react';
+import { Copy, Archive, History, FileText, Hash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { PfmeaHeader } from '../../api/pfmeaService';
 import { formatDate } from '../../utils/dateUtils';
@@ -87,8 +87,8 @@ export const PFMEAProjectCard: React.FC<PFMEAProjectCardProps> = ({ project, onE
         <h3 className={`font-semibold text-lg leading-tight transition-colors line-clamp-2 ${isArchived ? 'text-amber-900 dark:text-amber-100' : 'text-steel-100 group-hover:text-indigo-400'}`} title={project.project_name}>
           {project.project_name}
         </h3>
-        <p className={`text-sm font-mono mt-1.5 flex items-center gap-2 truncate ${isArchived ? 'text-amber-700/80 dark:text-amber-400/80' : 'text-steel-400'}`} title={project.customer_name}>
-          {project.customer_name || t('dashboard.noCustomer', 'No Especificado')}
+        <p className={`text-sm font-mono mt-1.5 flex items-center gap-2 truncate ${isArchived ? 'text-amber-700/80 dark:text-amber-400/80' : 'text-steel-400'}`} title={project.customer}>
+          {project.customer || t('dashboard.noCustomer', 'No Especificado')}
         </p>
       </div>
 
@@ -106,11 +106,11 @@ export const PFMEAProjectCard: React.FC<PFMEAProjectCardProps> = ({ project, onE
       <div className={`mt-auto pt-4 flex flex-col gap-3 border-t ${isArchived ? 'border-amber-200 dark:border-amber-500/30' : 'border-steel-800/50'}`}>
         <div className="flex flex-wrap gap-2">
           <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-medium font-mono ${
-            isArchived 
-              ? 'bg-amber-100/80 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300' 
+            isArchived
+              ? 'bg-amber-100/80 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300'
               : 'bg-steel-800 border border-steel-700 text-steel-400'
           }`}>
-            #{project.id} • v{project.rev_level || '1'}
+            #{project.id} • v{project.version || '1'}
           </span>
         </div>
         <div className="flex flex-col gap-1">

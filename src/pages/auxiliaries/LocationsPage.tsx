@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Edit2, Trash2, MapPin, Building } from 'lucide-react';
+import { Plus, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,7 +20,7 @@ import { Pagination } from '../../components/ui/Pagination';
 const LocationsPage: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<ManufacturingLocation | null>(null);
 
@@ -33,15 +33,14 @@ const LocationsPage: React.FC = () => {
   });
 
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [search, setSearch] = useState('');
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ['locations'],
@@ -62,7 +61,7 @@ const LocationsPage: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: any }) => updateLocation(id, data),
+    mutationFn: ({ id, data }: { id: number, data: Parameters<typeof updateLocation>[1] }) => updateLocation(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
       toast.success(t('locations.toast.updateSuccess'));
@@ -214,7 +213,7 @@ const LocationsPage: React.FC = () => {
                   <X size={20} />
                 </button>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-1.5">
@@ -276,8 +275,8 @@ const LocationsPage: React.FC = () => {
                     disabled={createMutation.isPending || updateMutation.isPending}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-indigo-900/20 disabled:bg-indigo-900/60 disabled:text-indigo-200 cursor-pointer"
                   >
-                    {createMutation.isPending || updateMutation.isPending 
-                      ? t('locations.form.saving') 
+                    {createMutation.isPending || updateMutation.isPending
+                      ? t('locations.form.saving')
                       : t('locations.form.save')}
                   </button>
                 </div>

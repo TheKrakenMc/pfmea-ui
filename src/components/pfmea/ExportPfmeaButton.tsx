@@ -1,3 +1,4 @@
+import {toast} from 'sonner';
 // ─────────────────────────────────────────────────────────────
 //  ExportPfmeaButton — PDF Download Trigger for PFMEA
 // ─────────────────────────────────────────────────────────────
@@ -5,8 +6,8 @@
 import React, { useState, useCallback } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
-import { generatePfmeaPdf } from '../../services/pfmeaPdfGenerator';
+import {useAuth} from '../../hooks/useAuth';
+import { adaptToCorporateApg } from '../../adapters/fmeaCorporateAdapter';
 import type { PfmeaHeader, WorksheetRow } from '../../api/pfmeaService';
 import type { PfmeaPdfData, PfmeaPdfRow } from '../../types/pfmeaExport.types';
 import { buildHeaderFromPfmea } from '../../services/sharedDocumentHeader';
@@ -16,6 +17,7 @@ interface ExportPfmeaButtonProps {
   rows: WorksheetRow[];
   productData?: { description?: string | null };
   className?: string;
+  layout?: 'AIAG_VDA' | 'AIAG_APG' | 'VDA';
 }
 
 export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
@@ -23,6 +25,7 @@ export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
   rows,
   productData,
   className,
+  layout = 'AIAG_VDA',
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -34,15 +37,14 @@ export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
 
     try {
       const sharedHeader = buildHeaderFromPfmea(header, productData);
-      
+
       const mapCharacteristic = (val: string | null | undefined) => {
         if (!val) return '';
         const upper = val.toUpperCase().trim();
-        if (upper === 'CC') return sharedHeader.safetyCharacteristic || 'CC';
-        if (upper === 'SC') return '@';
-        return val;
+        if (upper === 'CC' || upper === 'SC' || upper === '@') return '@';
+        return '';
       };
-      
+
       const pdfRows: PfmeaPdfRow[] = rows.map(r => ({
         process: r.process_item_name || '',
         stationOperation: r.station_operation || '',
@@ -128,9 +130,21 @@ export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
         revisionDate: safeFormatDate(sharedHeader.revisionDate)
       };
 
-      const blob = await generatePfmeaPdf(pdfData, t);
+      const {FMEAPdfExporter}=await import('../../services/pdf/fmeaExportStrategies');
+      const exporter = new FMEAPdfExporter();
+      if(layout==='AIAG_APG'){const {CorporateApgLayoutStrategy}=await import('../../services/pdf/CorporateApgLayoutStrategy');exporter.registerStrategy('AIAG_APG',new CorporateApgLayoutStrategy());}
+      else {const {AigVdaLayoutStrategy}=await import('../../services/pdf/AigVdaLayoutStrategy');exporter.registerStrategy('AIAG_VDA',new AigVdaLayoutStrategy());}
 
-      const resolvedFilename = `PFMEA_${sharedHeader.pfmeaIdNumber}_Rev${sharedHeader.revision}.pdf`;
+      let blob: Blob;
+      let resolvedFilename = `PFMEA_${sharedHeader.pfmeaIdNumber || header.id}_Rev${sharedHeader.revision}.pdf`;
+
+      if (layout === 'AIAG_APG') {
+        const apgData = adaptToCorporateApg(header, rows, user?.full_name || undefined, productData);
+        blob = await exporter.export('AIAG_APG', apgData, t);
+        resolvedFilename = `PFMEA_APG_${header.pfmea_id_number || header.id}_Rev${sharedHeader.revision}.pdf`;
+      } else {
+        blob = await exporter.export('AIAG_VDA', pdfData, t);
+      }
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -142,10 +156,11 @@ export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('[ExportPfmeaButton] PDF generation failed:', error);
+      toast.error('No se pudo generar el PDF. El documento se conserva.');
     } finally {
       setIsExporting(false);
     }
-  }, [isExporting, header, rows, user, t]);
+  }, [isExporting, header, rows, user, t, layout, productData]);
 
   return (
     <button
@@ -156,14 +171,14 @@ export const ExportPfmeaButton: React.FC<ExportPfmeaButtonProps> = ({
         className ||
         'group flex items-center gap-2.5 rounded-2xl border border-steel-600 bg-steel-800/90 px-5 py-3 text-sm font-medium text-steel-200 shadow-xl backdrop-blur-md transition-industrial hover:border-forge-500/40 hover:text-forge-400 cursor-pointer focus:outline-none focus:ring-2 focus:ring-forge-500 disabled:cursor-not-allowed disabled:opacity-40'
       }
-      title="Exportar PFMEA como PDF"
+      title={t('export.pfmea.title', 'Exportar PFMEA como PDF')}
     >
       {isExporting ? (
         <Loader2 size={18} className="animate-spin" />
       ) : (
         <FileDown size={18} />
       )}
-      <span>{isExporting ? t('export.pfmea.generating') || 'Generando PFMEA...' : t('export.pfmea.button') || 'Exportar PFMEA'}</span>
+      <span>{isExporting ? t('export.pfmea.generating', 'Generando PFMEA...') : t('export.pfmea.button', 'Exportar PFMEA')}</span>
     </button>
   );
 };

@@ -9,7 +9,7 @@ import { AlertTriangle, X } from 'lucide-react';
 
 interface DeleteConfirmModalProps {
   stepName: string;
-  stepSequence: number;
+  stepSequence: number | string;
   onConfirm: () => void;
   onCancel: () => void;
 }

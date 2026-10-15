@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import TechnologyTable from '../../components/technologies/TechnologyTable';
 import { TechnologyCard } from '../../components/technologies/TechnologyCard';
 import TechnologyForm from '../../components/technologies/TechnologyForm';
@@ -17,22 +17,22 @@ import { Settings, Layers } from 'lucide-react';
 
 const TechnologiesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { data, isLoading, error } = useTechnology();
+  const { data, isLoading } = useTechnology();
   const deleteMutation = useDeleteTechnology();
 
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [search, setSearch] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [search, rawSetSearch] = useState('');
+  const setSearch = (value: Parameters<typeof rawSetSearch>[0]) => { rawSetSearch(value); setCurrentPage(1); };
+  const [selectedCategories, rawSetSelectedCategories] = useState<string[]>([]);
+  const setSelectedCategories = (value: Parameters<typeof rawSetSelectedCategories>[0]) => { rawSetSelectedCategories(value); setCurrentPage(1); };
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const { data: categories } = useTechnologyCategories();
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Reset pagination on filter change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedCategories]);
+
   const [editingTech, setEditingTech] = useState<Technology | Record<string, never> | null>(null);
   const [deletingTech, setDeletingTech] = useState<Technology | null>(null);
   const [managingParamsForTech, setManagingParamsForTech] = useState<number | null>(null);
@@ -45,7 +45,7 @@ const TechnologiesPage: React.FC = () => {
     });
 
     if (selectedCategories.length > 0) {
-      result = result.filter((tech) => selectedCategories.includes(tech.category));
+      result = result.filter((tech) => selectedCategories.includes(tech.category || ''));
     }
 
     return result;
@@ -158,10 +158,9 @@ const TechnologiesPage: React.FC = () => {
 
       {deletingTech && (
         <DeleteConfirmation
-          techName={deletingTech.name}
+          tech={deletingTech}
           onConfirm={() => handleDelete(deletingTech)}
-          onCancel={() => setDeletingTech(null)}
-          isDeleting={deleteMutation.isPending}
+          onClose={() => setDeletingTech(null)}
         />
       )}
 

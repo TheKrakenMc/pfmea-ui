@@ -10,11 +10,11 @@ interface FilterBarProps {
 
 export const FilterBar: React.FC<FilterBarProps> = ({ children, onReset, hasActiveFilters }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {children}
-      
+
       {onReset && hasActiveFilters && (
         <button
           onClick={onReset}

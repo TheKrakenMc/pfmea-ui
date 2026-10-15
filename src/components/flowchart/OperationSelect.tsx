@@ -3,7 +3,7 @@
 //  Groups operations by category with filter support.
 // ─────────────────────────────────────────────────────────────
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +32,7 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
       id: t.id.toString(),
       code: t.code || 'SYS',
       name: t.name,
-      category: (t.category || 'other') as any,
+      category: t.category || 'other',
     }));
   }, [technologies]);
 
@@ -54,9 +54,8 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
   }, []);
 
   // Update coordinates and manage scroll/resize listeners
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
-      setCoords(null);
       return;
     }
 
@@ -67,7 +66,7 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
         const spaceAbove = rect.top;
         const dropdownHeight = 320; // 16rem list + search bar + padding
 
-        let positionCoords: any = {
+        const positionCoords: { top?: number; bottom?: number; left: number; width: number } = {
           left: rect.left,
           width: Math.max(rect.width, 288),
         };
@@ -154,14 +153,14 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="focus-ring flex w-full items-center justify-between gap-2 rounded-lg border border-steel-600 bg-steel-800 px-3 py-2 text-left text-sm transition-industrial hover:border-forge-500/50 cursor-pointer"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-steel-700/60 bg-slate-50 dark:bg-steel-900/80 px-3 py-2 text-left text-xs font-semibold transition-colors hover:border-slate-300 dark:hover:border-steel-600 cursor-pointer shadow-2xs"
       >
-        <span className={`flex-1 truncate min-w-0 ${value ? 'text-steel-100' : 'text-steel-400'}`}>
+        <span className={`flex-1 truncate min-w-0 ${value ? 'text-slate-900 dark:text-steel-100 font-medium' : 'text-slate-400 dark:text-steel-400'}`}>
           {displayedName}
         </span>
         <ChevronDown
           size={14}
-          className={`text-steel-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`text-slate-400 dark:text-steel-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -175,7 +174,7 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="z-50 overflow-hidden rounded-xl border border-steel-600 bg-steel-850 shadow-2xl mt-1"
+              className="z-50 overflow-hidden rounded-xl border border-slate-200 dark:border-steel-700 bg-white dark:bg-steel-900 shadow-2xl mt-1"
               style={{
                 position: 'fixed',
                 ...(coords.top !== undefined ? { top: `${coords.top}px` } : {}),
@@ -185,21 +184,21 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
               }}
             >
               {/* Search Bar */}
-              <div className="flex items-center gap-2 border-b border-steel-700 px-3 py-2">
-                <Search size={14} className="text-steel-400" />
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-steel-800 px-3 py-2 bg-slate-50 dark:bg-steel-900/80">
+                <Search size={14} className="text-slate-400 dark:text-steel-400" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('operations.searchPlaceholder')}
-                  className="flex-1 bg-transparent text-sm text-steel-100 placeholder-steel-500 outline-none"
+                  placeholder={t('operations.searchPlaceholder', 'Buscar operación / tecnología...')}
+                  className="flex-1 bg-transparent text-xs font-medium text-slate-900 dark:text-steel-100 placeholder:text-slate-400 dark:placeholder:text-steel-500 outline-none"
                 />
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
-                    className="text-steel-400 hover:text-steel-200 cursor-pointer"
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-steel-200 cursor-pointer"
                   >
                     <X size={12} />
                   </button>
@@ -209,15 +208,15 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
               {/* Options List */}
               <div className="max-h-64 overflow-y-auto py-1">
                 {grouped.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-sm text-steel-500">
-                    {t('operations.noResults')}
+                  <div className="px-4 py-6 text-center text-xs text-slate-400 dark:text-steel-500">
+                    {t('operations.noResults', 'No se encontraron resultados')}
                   </div>
                 ) : (
                   grouped.map(({ category, operations }) => (
                     <div key={category}>
                       {/* Category Header */}
-                      <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-steel-400">
-                        {t(`operations.categories.${category}`)}
+                      <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-steel-400 bg-slate-50/50 dark:bg-steel-900/40">
+                        {t(`operations.categories.${category}`, category)}
                       </div>
 
                       {/* Items */}
@@ -229,15 +228,15 @@ export function OperationSelect({ value, displayValue, onChange, disabledIds = [
                             type="button"
                             onClick={() => !isDisabled && handleSelect(op)}
                             disabled={isDisabled}
-                            className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-industrial ${
+                            className={`flex w-full items-center gap-3 px-3 py-2 text-left text-xs font-medium transition-colors ${
                               op.id === value
-                                ? 'bg-forge-500/10 text-forge-400'
+                                ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-bold'
                                 : isDisabled
-                                ? 'text-steel-500 cursor-not-allowed opacity-60'
-                                : 'text-steel-200 hover:bg-forge-500/10 cursor-pointer'
+                                ? 'text-slate-400 dark:text-steel-600 cursor-not-allowed opacity-60'
+                                : 'text-slate-800 dark:text-steel-200 hover:bg-slate-100 dark:hover:bg-steel-800 cursor-pointer'
                             }`}
                           >
-                            <span className={`w-16 shrink-0 rounded bg-steel-700/50 px-1.5 py-0.5 text-center text-[10px] font-mono ${isDisabled ? 'text-steel-600' : 'text-steel-400'}`}>
+                            <span className={`w-16 shrink-0 rounded bg-slate-100 dark:bg-steel-800 px-1.5 py-0.5 text-center text-[10px] font-mono font-bold ${isDisabled ? 'text-slate-400 dark:text-steel-600' : 'text-slate-700 dark:text-steel-300'}`}>
                               {op.code}
                             </span>
                             <span>{op.name}</span>

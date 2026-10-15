@@ -6,6 +6,7 @@ export interface MeasurementUnit {
 }
 
 export interface Technology {
+  code?: string | null;
   id: number;
   name: string;
   operation_name?: string;
@@ -59,6 +60,8 @@ export interface ProductParameterUpdatePayload {
 }
 
 export interface Product {
+  lock_version:number;
+  needs_review:boolean;
   id: number;
   part_number: string | null;
   customer_part_number: string | null;
@@ -128,7 +131,7 @@ export interface DocumentVersion {
   revision_number: number;
   change_reason: string;
   observations?: string | null;
-  snapshot_data?: any;
+  snapshot_data?: { engineering_level?: string; [key: string]: unknown };
   is_initial_revision: boolean;
   created_by: number;
   created_at: string;
