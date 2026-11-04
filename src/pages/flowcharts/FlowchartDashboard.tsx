@@ -1,9 +1,13 @@
+import { useAuth } from '../../hooks/useAuth';
+import { useDocumentView } from '../../hooks/useDocumentView';
+import { loadCatalog } from '../../utils/loadCatalog';
 import { getErrorMessage } from '../../utils/errors';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Archive, AlertCircle, X, Loader2, Factory, Hash, Users, FileSignature, Package } from 'lucide-react';
+import { backdropVariants, modalCardVariants } from '../../utils/motion';
+import { Plus, AlertCircle, X, Loader2, Factory, Hash, Users, FileSignature, Package } from 'lucide-react';
 import { getDocumentHeaders, createFlowchart, listProducts, archiveFlowchart, type FlowchartRead, type ProductRead, type ArchivePayload } from '../../services/flowchartService';
 import { createProduct, listTechnologies, uploadImage } from '../../services/productService';
 import { listCustomers } from '../../services/customerService';
@@ -37,10 +41,14 @@ import { toast } from 'sonner';
 export const FlowchartDashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreate = ["Administrator","PFMEA Owner","Process Engineer"].includes(user?.role_name || '');
+  const canArchive = ['Administrator', 'PFMEA Owner'].includes(user?.role_name || '');
 
   // ─── State ─────────────────────────────────────────────────
   const [flowcharts, setFlowcharts] = useState<FlowchartRead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const [search, rawSetSearch] = useState('');
@@ -51,7 +59,7 @@ export const FlowchartDashboard: React.FC = () => {
   const setSelectedCustomers = (value: Parameters<typeof rawSetSelectedCustomers>[0]) => { rawSetSelectedCustomers(value); setCurrentPage(1); };
   const [sortOrder, rawSetSortOrder] = useState<string>('date-desc');
   const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useDocumentView();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -106,7 +114,7 @@ export const FlowchartDashboard: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getDocumentHeaders();
+        const data = await loadCatalog((skip, limit) => getDocumentHeaders(skip, limit), () => cancelled);
         if (!cancelled) {
           setFlowcharts(data);
           setLoading(false);
@@ -114,7 +122,7 @@ export const FlowchartDashboard: React.FC = () => {
       } catch (err) {
         if (!cancelled) {
           console.error('Failed to fetch flowcharts:', err);
-          setError('No se pudieron cargar los diagramas de flujo. Verifica tu conexión.');
+          setError(t('workspace:error'));
           setLoading(false);
         }
       }
@@ -122,7 +130,7 @@ export const FlowchartDashboard: React.FC = () => {
 
     fetchData();
     return () => { cancelled = true; };
-  }, []);
+  }, [t, loadAttempt]);
 
   // ─── Fetch products when modal opens ────────────────────────
   useEffect(() => {
@@ -174,13 +182,10 @@ export const FlowchartDashboard: React.FC = () => {
 
       const matchesCustomer = selectedCustomers.length === 0 || (fc.product?.customer_name && selectedCustomers.includes(fc.product.customer_name));
 
-      let matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(fc.status);
+      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(fc.status);
       const isArchived = fc.status?.toLowerCase() === 'archived';
 
-      // If the toggle is active, force archived documents to pass the status check.
-      if (showArchived && isArchived) {
-        matchesStatus = true;
-      }
+
 
       // By default, hide archived documents unless toggle is active
       const matchesArchived = showArchived || !isArchived;
@@ -207,10 +212,12 @@ export const FlowchartDashboard: React.FC = () => {
     return filtered;
   }, [flowcharts, search, selectedStatuses, selectedCustomers, sortOrder, showArchived]);
 
+  const safeCurrentPage = Math.min(currentPage, Math.max(1, Math.ceil(filteredProjects.length / itemsPerPage)));
+
   const paginatedProjects = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
+    const start = (safeCurrentPage - 1) * itemsPerPage;
     return filteredProjects.slice(start, start + itemsPerPage);
-  }, [filteredProjects, currentPage, itemsPerPage]);
+  }, [filteredProjects, safeCurrentPage, itemsPerPage]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,14 +356,15 @@ export const FlowchartDashboard: React.FC = () => {
   const actionButton = (
     <button
       onClick={() => setIsModalOpen(true)}
-      className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all font-medium text-sm shadow-lg shadow-indigo-900/20 cursor-pointer"
+      className="workspace-create"
     >
       <Plus size={16} /> {t('dashboard.actions.create')}
     </button>
   );
 
-  const hasActiveFilters = selectedStatuses.length > 0 || selectedCustomers.length > 0 || sortOrder !== 'date-desc';
+  const hasActiveFilters = showArchived || search.trim().length > 0 || selectedStatuses.length > 0 || selectedCustomers.length > 0 || sortOrder !== 'date-desc';
   const handleResetFilters = () => {
+    setShowArchived(false);
     setSelectedStatuses([]);
     setSelectedCustomers([]);
     setSortOrder('date-desc');
@@ -376,8 +384,10 @@ export const FlowchartDashboard: React.FC = () => {
         label={t('common.status', 'Estado')}
         options={filterOptions.statuses}
         selectedValues={selectedStatuses}
-        onChange={setSelectedStatuses}
+        onChange={values => { setSelectedStatuses(values); if (values.some(value => value.toLowerCase() === 'archived')) setShowArchived(true); }}
       />
+      <label className="workspace-archive"><input type="checkbox" checked={showArchived}
+        onChange={event => { setShowArchived(event.target.checked); setCurrentPage(1); }} />{t('workspace:includeArchived')}</label>
       <SortDropdown
         options={[
           { value: 'date-desc', label: t('sort.newest', 'Más recientes') },
@@ -393,24 +403,6 @@ export const FlowchartDashboard: React.FC = () => {
 
   return (
     <>
-      {/* Error State */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 mb-6"
-        >
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-          <p className="text-red-300 text-sm">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="ml-auto text-xs text-red-400 hover:text-red-300 underline underline-offset-2"
-          >
-            Reintentar
-          </button>
-        </motion.div>
-      )}
-
       {/* Archive Confirm Modal */}
       <AnimatePresence>
         {isArchiveModalOpen && archiveTargetId !== null && (() => {
@@ -439,10 +431,15 @@ export const FlowchartDashboard: React.FC = () => {
       })()}
 
       <DataLayout
+        resultCount={filteredProjects.length}
+        error={error}
+        onRetry={() => setLoadAttempt(value => value + 1)}
+        hasActiveFilters={hasActiveFilters}
+        onReset={handleResetFilters}
         title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
         isLoading={loading}
-        actionButton={actionButton}
+        actionButton={canCreate ? actionButton : undefined}
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder={t('dashboard.searchPlaceholder', 'Buscar por Número de Parte o Cliente...')}
@@ -452,27 +449,13 @@ export const FlowchartDashboard: React.FC = () => {
         extraFilters={filterSelect}
         gridContent={
           <>
-            {/* Show Archived Toggle */}
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => setShowArchived(v => !v)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-                  showArchived
-                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                    : 'bg-steel-800/50 border-steel-700 text-steel-400 hover:text-steel-300'
-                }`}
-              >
-                <Archive size={12} />
-                {showArchived ? t('archive.filter.hideArchived') : t('archive.filter.showArchived')}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="workspace-grid">
               {paginatedProjects.map(project => (
                 <FlowchartProjectCard
                   key={project.id}
                   project={project}
                   onEdit={handleEdit}
-                  onArchive={handleArchiveClick}
+                  onArchive={canArchive ? handleArchiveClick : undefined}
                   onViewHistory={handleViewHistory}
                 />
               ))}
@@ -480,18 +463,18 @@ export const FlowchartDashboard: React.FC = () => {
           </>
         }
         tableContent={
-          <div className="glass-card rounded-2xl border border-steel-800 w-full flex-1 flex flex-col overflow-hidden bg-steel-900/40 backdrop-blur-md shadow-2xl">
+          <div className="workspace-table-content">
             <FlowchartProjectTable
               flowcharts={paginatedProjects}
               onEdit={handleEdit}
-              onArchive={handleArchiveClick}
+              onArchive={canArchive ? handleArchiveClick : undefined}
               onViewHistory={handleViewHistory}
             />
           </div>
         }
         pagination={
           <Pagination
-            currentPage={currentPage}
+            currentPage={safeCurrentPage}
             totalItems={filteredProjects.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
@@ -503,11 +486,15 @@ export const FlowchartDashboard: React.FC = () => {
       {/* ─── Create Project Modal ───────────────────────── */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-steel-950/80 backdrop-blur-sm">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={backdropVariants}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-steel-950/80 backdrop-blur-sm"
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              variants={modalCardVariants}
               className="bg-steel-900 border border-steel-800 rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
             >
               {/* Modal Header */}
@@ -898,7 +885,7 @@ export const FlowchartDashboard: React.FC = () => {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

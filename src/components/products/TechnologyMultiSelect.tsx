@@ -5,6 +5,7 @@ import type { Technology } from '../../types/product.types';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { TechnologyBadge } from './TechnologyBadge';
+import { popoverVariants } from '../../utils/motion';
 
 interface TechnologyMultiSelectProps {
   technologies: Technology[];
@@ -118,7 +119,7 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
       <button
         type="button"
         onClick={() => (setSearchTerm(''), setIsOpen(!isOpen))}
-        className="inline-flex items-center justify-center border border-dashed border-steel-600 text-steel-400 hover:text-indigo-400 hover:border-indigo-500/50 hover:bg-indigo-500/10 px-3 py-1 rounded-full text-xs font-medium transition-colors h-6"
+        className="inline-flex items-center justify-center border border-dashed border-[var(--ui-line-strong)] text-[var(--ui-muted)] hover:text-[var(--ui-accent)] hover:border-[var(--ui-accent)] hover:bg-[var(--ui-tint)] active:scale-[0.98] px-3 py-1 rounded-full text-xs font-medium transition-all h-7 cursor-pointer"
       >
         <Plus size={14} className="mr-1" />
         {t('products.detail.addTechnology', 'Añadir Tecnología')}
@@ -129,34 +130,35 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
           {isOpen && coords && (
             <motion.div
               ref={dropdownRef}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 5 }}
-              transition={{ duration: 0.15 }}
-              className="z-50 bg-steel-900 border border-steel-700 rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[320px]"
+              variants={popoverVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="z-50 bg-[var(--ui-surface)] border border-[var(--ui-line)] rounded-[var(--ui-panel-radius)] shadow-[var(--ui-shadow-popover)] overflow-hidden flex flex-col max-h-[320px]"
               style={{
                 position: 'fixed',
+                transformOrigin: coords.bottom !== undefined ? 'bottom left' : 'top left',
                 ...(coords.top !== undefined ? { top: `${coords.top}px` } : {}),
                 ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : {}),
                 left: `${coords.left}px`,
                 width: `${coords.width}px`,
               }}
             >
-              <div className="p-2 border-b border-steel-800 shrink-0 relative">
-                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-steel-500" />
+              <div className="p-2 border-b border-[var(--ui-line)] shrink-0 relative bg-[var(--ui-surface-subtle)]">
+                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ui-muted)]" />
                 <input
                   type="text"
                   autoFocus
                   placeholder={t('common.search', 'Buscar...')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-steel-950 border border-steel-800 rounded-md py-1.5 pl-8 pr-3 text-sm text-steel-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-[var(--ui-surface)] border border-[var(--ui-line)] rounded-[var(--ui-radius-sm)] py-1.5 pl-8 pr-3 text-sm text-[var(--ui-ink)] focus:outline-none focus:border-[var(--ui-focus)] transition-colors"
                 />
               </div>
 
-              <div className="overflow-y-auto flex-1 p-1 custom-scrollbar">
+              <div className="overflow-y-auto flex-1 p-1.5 custom-scrollbar">
                 {filteredTechnologies.length === 0 ? (
-                  <div className="py-4 text-center text-sm text-steel-500">
+                  <div className="py-4 text-center text-sm text-[var(--ui-muted)]">
                     {t('common.noResults', 'No se encontraron resultados')}
                   </div>
                 ) : (
@@ -166,20 +168,20 @@ export const TechnologyMultiSelect: React.FC<TechnologyMultiSelectProps> = ({
                       <div
                         key={tech.id}
                         onClick={() => toggleTechnology(tech.id)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-colors ${
-                          isSelected ? 'bg-indigo-500/10' : 'hover:bg-steel-800'
+                        className={`flex items-center gap-3 px-3 py-2 rounded-[var(--ui-radius-sm)] cursor-pointer transition-colors ${
+                          isSelected ? 'bg-[var(--ui-tint)]' : 'hover:bg-[var(--ui-surface-hover)]'
                         }`}
                       >
                         <div
                           className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
                             isSelected
-                              ? 'bg-indigo-500 border-indigo-500 text-white'
-                              : 'border-steel-600 bg-steel-950/50'
+                              ? 'bg-[var(--ui-primary)] border-[var(--ui-primary)] text-white'
+                              : 'border-[var(--ui-line-strong)] bg-[var(--ui-surface)]'
                           }`}
                         >
                           {isSelected && <Check size={12} strokeWidth={3} />}
                         </div>
-                        <span className={`text-sm ${isSelected ? 'text-indigo-400 font-medium' : 'text-steel-200'}`}>
+                        <span className={`text-sm ${isSelected ? 'text-[var(--ui-accent)] font-medium' : 'text-[var(--ui-ink)]'}`}>
                           {tech.name || tech.operation_name}
                         </span>
                       </div>

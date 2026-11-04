@@ -8,6 +8,7 @@ import {useQuery} from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { backdropVariants, EASING } from '../../utils/motion';
 import {
   X,
   Clock,
@@ -165,9 +166,10 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
         <>
           {/* Overlay */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={onClose}
             className="fixed inset-0 z-40 bg-steel-900/50 backdrop-blur-sm"
           />
@@ -175,9 +177,8 @@ export const DocumentHistoryDrawer: React.FC<DocumentHistoryDrawerProps> = ({
           {/* Drawer */}
           <motion.div
             initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            animate={{ x: 0, transition: { duration: 0.25, ease: EASING.out } }}
+            exit={{ x: '100%', transition: { duration: 0.18, ease: EASING.in } }}
             className="fixed top-0 right-0 h-full w-full max-w-md z-50 bg-steel-900 border-l border-steel-800 shadow-2xl flex flex-col"
           >
             {/* Drawer Header */}

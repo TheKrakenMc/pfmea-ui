@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "checks": [
+    "products-1440",
+    "flowcharts-1440",
+    "pfmea-1440",
+    "products-768",
+    "flowcharts-768",
+    "pfmea-768",
+    "products-390",
+    "flowcharts-390",
+    "pfmea-390",
+    "products-empty-768",
+    "products-table-768",
+    "drawer-768",
+    "flowcharts-dark-768",
+    "flowcharts-en-dark-768",
+    "products-error-768",
+    "205-record pagination, page size reset, empty/reset, persisted view, archived table, Escape/focus, theme/language, reduced motion, retry, viewer permissions"
+  ],
+  "errors": []
+}

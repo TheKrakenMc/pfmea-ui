@@ -5,20 +5,27 @@ import { useState } from 'react';
 import { controlPlanService, type ControlPlanItem, type ControlPlanItemUpdate } from '../../api/controlPlanService';
 import { toast } from 'sonner';
 
-export function ControlPlanItemEditor({ item, version, readOnly, canReview, allowedResponsibleIds, onSaved }: { item: ControlPlanItem; version: number; readOnly: boolean; canReview: boolean; allowedResponsibleIds:number[]; onSaved: () => void }) {
+export function ControlPlanItemEditor({ item, version, readOnly, canReview, allowedResponsibleIds, onSaved, onDirtyChange }: { item: ControlPlanItem; version: number; readOnly: boolean; canReview: boolean; allowedResponsibleIds:number[]; onSaved: () => void; onDirtyChange?: (id: number, dirty: boolean) => void }) {
+  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [values, setValues] = useState<ControlPlanItemUpdate>({ characteristic: item.characteristic, classification: item.classification,
-    specification: item.specification, measurement_method: item.measurement_method, sample_size: item.sample_size,
+    specification: item.specification, measurement_method: item.measurement_method,
+    sample_size_text: item.sample_size_text ?? (item.sample_size == null ? null : String(item.sample_size)),
+    control_method: item.control_method,
     sample_frequency: item.sample_frequency, responsible_person_id: item.responsible_person_id, reaction_plan: item.reaction_plan, unit_id: item.unit_id });
   const [reviewReason,setReviewReason]=useState('');
   const [saving, setSaving] = useState(false);
   const { data: users = [] } = useQuery({queryKey:['users','lookup'],queryFn:userService.lookup});
   const { data: units = [] } = useQuery({queryKey:['measurement-units'],queryFn:getMeasurementUnits});
   const fields = [{ key: 'characteristic', label: 'Característica' }, { key: 'specification', label: 'Especificación' },
-    { key: 'measurement_method', label: 'Método de medición' }, { key: 'sample_frequency', label: 'Frecuencia de muestra' },
+    { key: 'measurement_method', label: 'Método de medición' }, { key: 'control_method', label: 'Método de control' },
+    { key: 'sample_size_text', label: 'Tamaño de muestra' }, { key: 'sample_frequency', label: 'Frecuencia de muestra' },
     { key: 'reaction_plan', label: 'Plan de reacción' }] as const;
-  return <form className="space-y-3 p-4 border border-steel-700 rounded-xl" onSubmit={async e => {
+  return <form className="space-y-3 p-4 border border-steel-700 rounded-xl" onChange={() => {
+    setEditVersion(previous => previous ?? version);
+    onDirtyChange?.(item.id, true);
+  }} onSubmit={async e => {
     e.preventDefault(); setSaving(true);
-    try { await controlPlanService.updateItem(item.id, values, version); toast.success('Control guardado'); onSaved(); }
+    try { await controlPlanService.updateItem(item.id, values, editVersion ?? version); setEditVersion(null); onDirtyChange?.(item.id, false); toast.success('Control guardado'); onSaved(); }
     catch { toast.error('No se guardó el control. Revisa permisos, datos y revisión del documento.'); }
     finally { setSaving(false); }
   }}>
@@ -27,7 +34,6 @@ export function ControlPlanItemEditor({ item, version, readOnly, canReview, allo
     <div className="grid sm:grid-cols-2 gap-3">
       {fields.map(f => <label key={f.key} className="text-xs">{f.label}<input disabled={readOnly} value={values[f.key] || ''} onChange={e => setValues({ ...values, [f.key]: e.target.value })} className="block w-full rounded bg-steel-950 border border-steel-700 p-2" /></label>)}
       <label className="text-xs">Clasificación<select disabled={readOnly} value={values.classification || ''} onChange={e => setValues({ ...values, classification: e.target.value === 'CC' ? 'CC' : e.target.value === 'SC' ? 'SC' : null })} className="block w-full rounded bg-steel-950 p-2"><option value="">Seleccionar</option><option>CC</option><option>SC</option></select></label>
-      {([{ key: 'sample_size', label: 'Tamaño de muestra' }] as const).map(f => <label key={f.key} className="text-xs">{f.label}<input type="number" min={1} disabled={readOnly} value={values[f.key] || ''} onChange={e => setValues({ ...values, [f.key]: e.target.value ? Number(e.target.value) : null })} className="block w-full rounded bg-steel-950 p-2" /></label>)}
       <label className="text-xs">Responsable<select disabled={readOnly} value={values.responsible_person_id || ''} onChange={e=>setValues({...values,responsible_person_id:e.target.value?Number(e.target.value):null})} className="block w-full rounded bg-steel-950 p-2"><option value="">Seleccionar</option>{users.filter(u=>allowedResponsibleIds.includes(Number(u.id))).map(u=><option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}</select></label>
       <label className="text-xs">Unidad<select disabled={readOnly} value={values.unit_id || ''} onChange={e=>setValues({...values,unit_id:e.target.value?Number(e.target.value):null})} className="block w-full rounded bg-steel-950 p-2"><option value="">Sin unidad</option>{units.map(u=><option key={u.id} value={u.id}>{u.symbology} — {u.description}</option>)}</select></label>
     </div>

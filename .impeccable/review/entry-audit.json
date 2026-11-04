@@ -1,0 +1,25 @@
+{
+  "checks": [
+    {
+      "capture": "welcome-1440",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "capture": "welcome-768",
+      "width": 768,
+      "horizontalOverflow": false
+    },
+    {
+      "capture": "welcome-390",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "flow": "all four existing module destinations",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "backend": "isolated browser fixtures"
+}

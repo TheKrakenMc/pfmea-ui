@@ -1,31 +1,45 @@
 import axiosClient from '../../api/axiosClient';
-import {revisions} from '../../api/sessionState';
+import { revisions } from '../../api/sessionState';
 import React, { useState } from 'react';
-import { Plus, Trash2, Loader2, Save, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { useQuery,useQueryClient } from '@tanstack/react-query';
 import {
-  useProductParameters,
-} from '../../hooks/useProductParameters';
+  Plus,
+  Trash2,
+  Loader2,
+  Save,
+  GripVertical,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useProductParameters } from '../../hooks/useProductParameters';
 import type { ProductParameterCreatePayload } from '../../types/product.types';
 import { getMeasurementUnits } from '../../services/measurementUnits';
 import { toast } from 'sonner';
 import { useRBAC } from '../../hooks/useRBAC';
 import { MeasurementUnitSelect } from './MeasurementUnitSelect';
+import { SPRING } from '../../utils/motion';
 
 interface ProductParameterManagerProps {
   productId: number;
-  readOnly?:boolean;
+  readOnly?: boolean;
   technologies?: { id: number; name: string }[];
 }
 
-export const ProductParameterManager: React.FC<ProductParameterManagerProps> = ({ productId, technologies = [],readOnly=false }) => {
+export const ProductParameterManager: React.FC<ProductParameterManagerProps> = ({
+  productId,
+  technologies = [],
+  readOnly = false,
+}) => {
   const { t } = useTranslation();
-  const { canEditProduct:roleCanEdit } = useRBAC();
-  const canEditProduct=roleCanEdit && !readOnly;
-  const queryClient=useQueryClient();
-  const [expectedVersion,setExpectedVersion]=useState(()=>revisions.get('products:'+productId));
+  const { canEditProduct: roleCanEdit } = useRBAC();
+  const canEditProduct = roleCanEdit && !readOnly;
+  const queryClient = useQueryClient();
+  const [expectedVersion, setExpectedVersion] = useState(() =>
+    revisions.get('products:' + productId),
+  );
   const { data: existingParams, isLoading: isLoadingParams } = useProductParameters(productId);
 
   const { data: units = [], isLoading: isLoadingUnits } = useQuery({
@@ -33,26 +47,34 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     queryFn: getMeasurementUnits,
   });
 
-  const [params, rawSetParams] = useState<(ProductParameterCreatePayload & { id?: number; dragId: string; technology_id?: number | null })[]>([]);
-  const [parametersDirty,setParametersDirty]=useState(false);
-  const setParams:typeof rawSetParams=(update)=>{setParametersDirty(true);rawSetParams(update);};
+  const [params, rawSetParams] = useState<
+    (ProductParameterCreatePayload & { id?: number; dragId: string; technology_id?: number | null })[]
+  >([]);
+  const [parametersDirty, setParametersDirty] = useState(false);
+  const setParams: typeof rawSetParams = update => {
+    setParametersDirty(true);
+    rawSetParams(update);
+  };
   const [deletedParamIds, setDeletedParamIds] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTechId, setActiveTechId] = useState<number | null>(null);
-  const activeTechId = technologies.some(t=>t.id===selectedTechId) ? selectedTechId : technologies[0]?.id ?? null;
+  const activeTechId = technologies.some(tech => tech.id === selectedTechId)
+    ? selectedTechId
+    : (technologies[0]?.id ?? null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-
   const [loadedParams, setLoadedParams] = useState<typeof existingParams>();
   if (existingParams !== loadedParams && !parametersDirty) {
     setLoadedParams(existingParams);
     if (existingParams) {
-      const sortedParams = [...existingParams].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      const sortedParams = [...existingParams].sort(
+        (a, b) => (a.order_index || 0) - (b.order_index || 0),
+      );
       rawSetParams(
-        sortedParams.map((p) => ({
+        sortedParams.map(p => ({
           id: p.id,
           dragId: `param-${p.id}`,
           name: p.name,
@@ -63,7 +85,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
           max_value: p.max_value ?? null,
           is_critical: p.is_critical,
           order_index: p.order_index,
-        }))
+        })),
       );
     }
   }
@@ -83,9 +105,9 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
       target_value: null,
       min_value: null,
       max_value: null,
-      order_index: techParams.length
+      order_index: techParams.length,
     };
-    setParams((prev) => [...prev, newParam]);
+    setParams(prev => [...prev, newParam]);
     // Auto navigate to last page
     const totalPages = Math.ceil((techParams.length + 1) / itemsPerPage);
     setCurrentPage(totalPages);
@@ -95,9 +117,9 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     if (!canEditProduct) return;
     const target = params.find(p => p.dragId === dragId);
     if (target && target.id) {
-      setDeletedParamIds((prev) => [...prev, target.id!]);
+      setDeletedParamIds(prev => [...prev, target.id!]);
     }
-    setParams((prev) => prev.filter((p) => p.dragId !== dragId));
+    setParams(prev => prev.filter(p => p.dragId !== dragId));
 
     // Adjust pagination if needed
     const totalPages = Math.ceil((params.length - 1) / itemsPerPage);
@@ -106,9 +128,13 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     }
   };
 
-  const updateParam = (dragId: string, field: string, value: string | number | boolean | null) => {
+  const updateParam = (
+    dragId: string,
+    field: string,
+    value: string | number | boolean | null,
+  ) => {
     if (!canEditProduct) return;
-    setParams((prev) => prev.map((p) => (p.dragId === dragId ? { ...p, [field]: value } : p)));
+    setParams(prev => prev.map(p => (p.dragId === dragId ? { ...p, [field]: value } : p)));
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -131,7 +157,7 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     // Update order_index
     const updatedFilteredParams = newFilteredParams.map((p, index) => ({
       ...p,
-      order_index: index
+      order_index: index,
     }));
 
     setParams([...otherParams, ...updatedFilteredParams]);
@@ -141,10 +167,24 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
     if (!canEditProduct) return;
     setIsSaving(true);
     try {
-      const {data:saved}=await axiosClient.put(`/products/${productId}/parameters/bulk`,{expected_version:expectedVersion,rows:params.map(row=>({id:row.id,name:row.name,measurement_unit_id:row.measurement_unit_id,technology_id:row.technology_id,target_value:row.target_value,min_value:row.min_value,max_value:row.max_value,is_critical:row.is_critical,order_index:row.order_index})),deleted_row_ids:deletedParamIds});
+      const { data: saved } = await axiosClient.put(`/products/${productId}/parameters/bulk`, {
+        expected_version: expectedVersion,
+        rows: params.map(row => ({
+          id: row.id,
+          name: row.name,
+          measurement_unit_id: row.measurement_unit_id,
+          technology_id: row.technology_id,
+          target_value: row.target_value,
+          min_value: row.min_value,
+          max_value: row.max_value,
+          is_critical: row.is_critical,
+          order_index: row.order_index,
+        })),
+        deleted_row_ids: deletedParamIds,
+      });
       setExpectedVersion(saved.lock_version);
-      await queryClient.invalidateQueries({queryKey:['products',productId,'parameters']});
-      await queryClient.invalidateQueries({queryKey:['products']});
+      await queryClient.invalidateQueries({ queryKey: ['products', productId, 'parameters'] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
       setParametersDirty(false);
       setDeletedParamIds([]);
       toast.success(t('products.parameters.saveSuccess', 'Parámetros guardados exitosamente'));
@@ -157,7 +197,11 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
   };
 
   if (isLoadingParams || isLoadingUnits) {
-    return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-500" /></div>;
+    return (
+      <div className="flex items-center justify-center p-10 text-[var(--ui-muted)]">
+        <Loader2 className="animate-spin text-[var(--ui-accent)]" size={22} />
+      </div>
+    );
   }
 
   // Filter params by active technology tab
@@ -167,91 +211,125 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
   const totalPages = Math.ceil(activeParams.length / itemsPerPage);
   const paginatedParams = activeParams.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const hasTechnologies = technologies && technologies.length > 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-steel-100 font-medium">{t('products.parameters.title', 'Gestión de Parámetros de Control')}</h3>
+    <div className="param-manager">
+      <div className="param-header">
+        <h3 className="param-title">
+          {t('products.parameters.title', 'Gestión de Parámetros de Control')}
+        </h3>
         {canEditProduct && (
-          <div className="flex gap-3">
+          <div className="param-actions">
             <button
+              type="button"
               onClick={addParam}
               disabled={!hasTechnologies}
-              title={!hasTechnologies ? t('products.parameters.requiresTechnology', 'Debe definir al menos una tecnología para agregar parámetros.') : ''}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-steel-400 hover:text-steel-200 transition-colors text-sm font-medium focus-ring rounded-lg border border-transparent hover:bg-steel-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              title={
+                !hasTechnologies
+                  ? t(
+                      'products.parameters.requiresTechnology',
+                      'Debe definir al menos una tecnología para agregar parámetros.',
+                    )
+                  : ''
+              }
+              className="ui-button"
             >
-              <Plus size={16} /> {t('products.parameters.add', 'Añadir Parámetro')}
+              <Plus size={16} />
+              <span>{t('products.parameters.add', 'Añadir Parámetro')}</span>
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-indigo-400 hover:text-indigo-300 transition-colors text-sm font-medium focus-ring rounded-lg border border-transparent hover:bg-indigo-900/30 disabled:opacity-50"
-            >
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {t('products.parameters.save', 'Guardar Cambios')}
-            </button>
+            <div className="workspace-primary">
+              <button type="button" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{t('products.parameters.save', 'Guardar Cambios')}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {hasTechnologies && (
-        <div className="flex gap-2 overflow-x-auto pb-2 border-b border-steel-800">
-          {technologies.map(tech => (
-            <button
-              key={tech.id}
-              onClick={() => {
-                setActiveTechId(tech.id);
-                setCurrentPage(1);
-              }}
-              className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                activeTechId === tech.id
-                  ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-steel-400 hover:text-steel-200'
-              }`}
-            >
-              {tech.name}
-            </button>
-          ))}
+        <div className="param-tech-tabs" role="tablist">
+          {technologies.map(tech => {
+            const isActive = activeTechId === tech.id;
+            return (
+              <button
+                key={tech.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                data-active={isActive || undefined}
+                onClick={() => {
+                  setActiveTechId(tech.id);
+                  setCurrentPage(1);
+                }}
+                className="detail-tab"
+              >
+                <span>{tech.name}</span>
+                {isActive && (
+                  <motion.span
+                    layoutId="param-tech-tab-indicator"
+                    className="detail-tab-indicator"
+                    transition={SPRING.snappy}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
       {activeParams.length === 0 ? (
-        <div className="p-8 border border-dashed border-steel-800 rounded-xl text-center bg-steel-950/30">
-          <p className="text-steel-500 text-sm">{t('products.parameters.empty', 'No hay parámetros definidos para este producto.')}</p>
+        <div className="param-empty">
+          <p>
+            {t(
+              'products.parameters.empty',
+              'No hay parámetros definidos para este producto.',
+            )}
+          </p>
           {canEditProduct && (
             <button
+              type="button"
               onClick={addParam}
               disabled={!hasTechnologies}
-              title={!hasTechnologies ? t('products.parameters.requiresTechnology', 'Debe definir al menos una tecnología para agregar parámetros.') : ''}
-              className="mt-2 text-indigo-400 text-sm hover:text-indigo-300 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-indigo-400"
+              title={
+                !hasTechnologies
+                  ? t(
+                      'products.parameters.requiresTechnology',
+                      'Debe definir al menos una tecnología para agregar parámetros.',
+                    )
+                  : ''
+              }
+              className="ui-button"
+              data-active="true"
             >
-              {t('products.parameters.startAdding', 'Comenzar a añadir parámetros')}
+              <Plus size={15} />
+              <span>{t('products.parameters.startAdding', 'Comenzar a añadir parámetros')}</span>
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-steel-950 border border-steel-800 rounded-xl overflow-hidden flex flex-col">
-          <div className="grid grid-cols-12 gap-3 p-3 border-b border-steel-800 bg-steel-900/50 text-xs font-semibold text-steel-400 uppercase tracking-wider items-center">
-            <div className="col-span-1 text-center w-8"></div>
+        <div className="param-table">
+          <div className="param-table-head">
+            <div className="col-span-1 text-center w-8" />
             <div className="col-span-4">{t('products.parameters.table.name', 'Nombre')}</div>
             <div className="col-span-3">{t('products.parameters.table.unit', 'Unidad')}</div>
             <div className="col-span-1">{t('products.parameters.table.min', 'Mínimo')}</div>
             <div className="col-span-1">{t('products.parameters.table.target', 'Objetivo')}</div>
             <div className="col-span-1">{t('products.parameters.table.max', 'Máximo')}</div>
-            <div className="col-span-1 text-center"></div>
+            <div className="col-span-1 text-center" />
           </div>
 
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="parameters-list">
-              {(provided) => (
+              {provided => (
                 <div
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="divide-y divide-steel-800 min-h-[100px]"
+                  className="min-h-[100px]"
                 >
                   {paginatedParams.map((p, index) => (
                     <Draggable
@@ -264,12 +342,11 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`grid grid-cols-12 gap-3 p-3 items-start group transition-colors ${
-                            snapshot.isDragging ? 'bg-steel-800/80 shadow-lg ring-1 ring-indigo-500/50 z-10' : 'hover:bg-steel-900/30'
-                          }`}
+                          data-dragging={snapshot.isDragging || undefined}
+                          className="param-row"
                         >
                           <div
-                            className="col-span-1 flex justify-center pt-2 text-steel-600 hover:text-steel-400 cursor-grab active:cursor-grabbing w-8"
+                            className="col-span-1 param-drag-handle"
                             {...provided.dragHandleProps}
                           >
                             <GripVertical size={16} />
@@ -277,21 +354,28 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
 
                           <div className="col-span-4">
                             <input
-                              className="w-full bg-steel-900 border border-steel-700 rounded-lg px-2.5 py-1.5 text-sm text-steel-100 placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
-                              placeholder={t('products.parameters.table.namePlaceholder', 'Ej. Temperatura')}
+                              className="ui-input param-input-compact"
+                              placeholder={t(
+                                'products.parameters.table.namePlaceholder',
+                                'Ej. Temperatura',
+                              )}
                               value={p.name}
-                              onChange={(e) => updateParam(p.dragId, 'name', e.target.value)}
+                              onChange={e => updateParam(p.dragId, 'name', e.target.value)}
                               disabled={!canEditProduct}
                             />
-                            <label className="flex items-center gap-1.5 mt-2 text-xs text-steel-400 cursor-pointer w-fit">
+                            <label
+                              className="param-critical-toggle"
+                              data-critical={p.is_critical || undefined}
+                            >
                               <input
                                 type="checkbox"
                                 checked={p.is_critical || false}
-                                onChange={(e) => updateParam(p.dragId, 'is_critical', e.target.checked)}
+                                onChange={e =>
+                                  updateParam(p.dragId, 'is_critical', e.target.checked)
+                                }
                                 disabled={!canEditProduct}
-                                className="rounded border-steel-700 text-amber-500 focus:ring-amber-500/20 bg-steel-900"
                               />
-                              <span className="font-medium text-amber-500/80">{t('products.parameters.table.critical', 'Crítico')}</span>
+                              <span>{t('products.parameters.table.critical', 'Crítico')}</span>
                             </label>
                           </div>
 
@@ -299,7 +383,9 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                             <MeasurementUnitSelect
                               units={units}
                               value={p.measurement_unit_id ?? null}
-                              onChange={(id) => updateParam(p.dragId, 'measurement_unit_id', id)}
+                              onChange={id =>
+                                updateParam(p.dragId, 'measurement_unit_id', id)
+                              }
                               disabled={!canEditProduct}
                             />
                           </div>
@@ -308,10 +394,19 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                             <input
                               type="number"
                               step="any"
-                              className="w-full bg-steel-900 border border-steel-700 rounded-lg px-2.5 py-1.5 text-sm text-steel-100 placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors font-mono"
-                              placeholder={t('products.parameters.table.minPlaceholder', 'Mín')}
+                              className="ui-input ui-input-mono param-input-compact"
+                              placeholder={t(
+                                'products.parameters.table.minPlaceholder',
+                                'Mín',
+                              )}
                               value={p.min_value ?? ''}
-                              onChange={(e) => updateParam(p.dragId, 'min_value', e.target.value === '' ? null : e.target.value)}
+                              onChange={e =>
+                                updateParam(
+                                  p.dragId,
+                                  'min_value',
+                                  e.target.value === '' ? null : e.target.value,
+                                )
+                              }
                               disabled={!canEditProduct}
                             />
                           </div>
@@ -320,10 +415,19 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                             <input
                               type="number"
                               step="any"
-                              className="w-full bg-steel-900 border border-steel-700 rounded-lg px-2.5 py-1.5 text-sm text-steel-100 placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors font-mono"
-                              placeholder={t('products.parameters.table.targetPlaceholder', 'Obj')}
+                              className="ui-input ui-input-mono param-input-compact"
+                              placeholder={t(
+                                'products.parameters.table.targetPlaceholder',
+                                'Obj',
+                              )}
                               value={p.target_value ?? ''}
-                              onChange={(e) => updateParam(p.dragId, 'target_value', e.target.value === '' ? null : e.target.value)}
+                              onChange={e =>
+                                updateParam(
+                                  p.dragId,
+                                  'target_value',
+                                  e.target.value === '' ? null : e.target.value,
+                                )
+                              }
                               disabled={!canEditProduct}
                             />
                           </div>
@@ -332,20 +436,31 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
                             <input
                               type="number"
                               step="any"
-                              className="w-full bg-steel-900 border border-steel-700 rounded-lg px-2.5 py-1.5 text-sm text-steel-100 placeholder-steel-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors font-mono"
-                              placeholder={t('products.parameters.table.maxPlaceholder', 'Máx')}
+                              className="ui-input ui-input-mono param-input-compact"
+                              placeholder={t(
+                                'products.parameters.table.maxPlaceholder',
+                                'Máx',
+                              )}
                               value={p.max_value ?? ''}
-                              onChange={(e) => updateParam(p.dragId, 'max_value', e.target.value === '' ? null : e.target.value)}
+                              onChange={e =>
+                                updateParam(
+                                  p.dragId,
+                                  'max_value',
+                                  e.target.value === '' ? null : e.target.value,
+                                )
+                              }
                               disabled={!canEditProduct}
                             />
                           </div>
 
-                          <div className="col-span-1 flex justify-center pt-1.5">
+                          <div className="col-span-1 flex justify-center pt-0.5">
                             {canEditProduct && (
                               <button
+                                type="button"
                                 onClick={() => removeParam(p.dragId)}
-                                className="p-1.5 text-steel-500 hover:text-alert-400 hover:bg-alert-500/10 rounded-lg transition-colors focus-ring opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                className="ui-icon-button param-delete-btn"
                                 title={t('common.delete', 'Eliminar')}
+                                aria-label={t('common.delete', 'Eliminar')}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -363,25 +478,31 @@ export const ProductParameterManager: React.FC<ProductParameterManagerProps> = (
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between p-3 border-t border-steel-800 bg-steel-900/30">
-              <span className="text-xs text-steel-400 font-medium">
-                {t('common.showing', 'Mostrando')} {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, activeParams.length)} {t('common.of', 'de')} {activeParams.length}
+            <div className="param-pagination">
+              <span>
+                {t('common.showing', 'Mostrando')} {(currentPage - 1) * itemsPerPage + 1} -{' '}
+                {Math.min(currentPage * itemsPerPage, activeParams.length)}{' '}
+                {t('common.of', 'de')} {activeParams.length}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="param-pagination-controls">
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1 text-steel-400 hover:text-steel-200 hover:bg-steel-800 rounded transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                  className="ui-icon-button"
+                  aria-label={t('workspace:previous', 'Anterior')}
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-xs font-medium text-steel-300 px-2 py-1 bg-steel-800 rounded">
+                <span className="document-card-id">
                   {currentPage} / {totalPages}
                 </span>
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1 text-steel-400 hover:text-steel-200 hover:bg-steel-800 rounded transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                  className="ui-icon-button"
+                  aria-label={t('workspace:next', 'Siguiente')}
                 >
                   <ChevronRight size={16} />
                 </button>

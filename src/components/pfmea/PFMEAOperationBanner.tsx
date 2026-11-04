@@ -25,6 +25,9 @@ export const PFMEAOperationBanner: React.FC<PFMEAOperationBannerProps> = ({
 }) => {
   const { t } = useTranslation();
   const { opTitle, totalRows, percentage, hasScCc, stepNumber } = operation;
+  const cleanOpTitle = stepNumber !== undefined
+    ? opTitle.replace(new RegExp(`^\\[OP\\s+${stepNumber}\\]\\s*`, 'i'), '')
+    : opTitle;
 
   // Percentage color classes
   const getPercentageStyles = (pct: number) => {
@@ -46,21 +49,21 @@ export const PFMEAOperationBanner: React.FC<PFMEAOperationBannerProps> = ({
         {/* Animated Chevron */}
         <motion.div
           animate={{ rotate: isCollapsed ? -90 : 0 }}
-          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           className="text-slate-500 dark:text-steel-400 p-0.5 rounded hover:bg-slate-300 dark:hover:bg-steel-800"
         >
           <ChevronDown size={16} />
         </motion.div>
 
         {/* OP Identifier Badge */}
-        <span className="inline-flex items-center gap-1 bg-blue-600 dark:bg-blue-500/30 text-white dark:text-blue-300 border border-blue-700 dark:border-blue-400/40 rounded px-2 py-0.5 font-mono text-[10px] font-bold shadow-xs">
+        <span className="inline-flex items-center gap-1 bg-blue-600 dark:bg-blue-500/30 text-white dark:text-blue-300 border border-blue-700 dark:border-blue-400/40 rounded px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums shadow-xs">
           <Layers size={10} />
           OP {stepNumber !== undefined ? stepNumber : ''}
         </span>
 
         {/* Operation Title */}
         <span className="font-bold text-xs tracking-wide text-slate-800 dark:text-steel-100">
-          {opTitle}
+          {cleanOpTitle}
         </span>
 
         {/* SC / CC Audit Flag Indicator */}

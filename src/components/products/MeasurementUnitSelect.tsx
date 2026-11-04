@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { MeasurementUnit } from '../../types/product.types';
+import { popoverVariants } from '../../utils/motion';
 
 interface MeasurementUnitSelectProps {
   units: MeasurementUnit[];
@@ -16,21 +17,27 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
   units,
   value,
   onChange,
-  disabled = false
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+  const [coords, setCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   // Group by magnitude and filter by search term
   const groupedUnits = useMemo(() => {
     const filtered = units.filter(
-      u => u.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           u.symbology.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (u.magnitude || '').toLowerCase().includes(searchTerm.toLowerCase())
+      u =>
+        u.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.symbology.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.magnitude || '').toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
     const groups: Record<string, MeasurementUnit[]> = {};
@@ -42,9 +49,11 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
 
     // Sort groups alphabetically
     const sortedGroups: Record<string, MeasurementUnit[]> = {};
-    Object.keys(groups).sort().forEach(key => {
-      sortedGroups[key] = groups[key];
-    });
+    Object.keys(groups)
+      .sort()
+      .forEach(key => {
+        sortedGroups[key] = groups[key];
+      });
 
     return sortedGroups;
   }, [units, searchTerm]);
@@ -61,7 +70,12 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
         const spaceAbove = rect.top;
         const dropdownHeight = 320;
 
-        const positionCoords: { top?: number; bottom?: number; left: number; width: number } = {
+        const positionCoords: {
+          top?: number;
+          bottom?: number;
+          left: number;
+          width: number;
+        } = {
           left: rect.left,
           width: rect.width,
         };
@@ -121,89 +135,116 @@ export const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
       <button
         type="button"
         disabled={disabled}
+        aria-expanded={isOpen}
         onClick={() => !disabled && (setSearchTerm(''), setIsOpen(!isOpen))}
-        className={`w-full bg-steel-900 border ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-steel-700'} rounded-lg px-2.5 py-1.5 text-sm text-left flex items-center justify-between transition-colors disabled:opacity-70 disabled:cursor-not-allowed h-9`}
+        className={`ui-input param-input-compact text-left flex items-center justify-between cursor-pointer ${
+          isOpen
+            ? 'border-[var(--ui-focus)] bg-[var(--ui-surface)] shadow-[0_0_0_3px_var(--ui-focus-ring)]'
+            : ''
+        }`}
       >
-        <span className={`truncate mr-2 ${selectedUnit ? 'text-steel-100' : 'text-steel-400'}`}>
-          {selectedUnit ? `${selectedUnit.description} (${selectedUnit.symbology})` : t('common.select', 'Seleccionar...')}
+        <span
+          className={`truncate mr-2 ${
+            selectedUnit ? 'text-[var(--ui-ink)]' : 'text-[var(--ui-muted)]'
+          }`}
+        >
+          {selectedUnit
+            ? `${selectedUnit.description} (${selectedUnit.symbology})`
+            : t('common.select', 'Seleccionar...')}
         </span>
-        <ChevronDown size={14} className={`text-steel-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          size={14}
+          className="ui-chevron text-[var(--ui-muted)]"
+        />
       </button>
 
-      {coords && createPortal(
+      {createPortal(
         <AnimatePresence>
-          <motion.div
-            ref={dropdownRef}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'fixed',
-              top: coords.top,
-              bottom: coords.bottom,
-              left: coords.left,
-              width: coords.width,
-              zIndex: 9999,
-            }}
-            className="bg-steel-900 border border-steel-700 rounded-lg shadow-xl shadow-black/50 overflow-hidden flex flex-col max-h-[320px]"
-          >
-            <div className="p-2 border-b border-steel-800 shrink-0 relative">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-steel-500" />
-              <input
-                type="text"
-                autoFocus
-                placeholder={t('common.search', 'Buscar...')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-steel-950 border border-steel-800 rounded-md py-1.5 pl-8 pr-3 text-sm text-steel-100 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
+          {isOpen && coords && (
+            <motion.div
+              ref={dropdownRef}
+              variants={popoverVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={{
+                position: 'fixed',
+                transformOrigin: coords.bottom !== undefined ? 'bottom left' : 'top left',
+                top: coords.top,
+                bottom: coords.bottom,
+                left: coords.left,
+                width: coords.width,
+                zIndex: 9999,
+              }}
+              className="bg-[var(--ui-surface)] border border-[var(--ui-line)] rounded-[var(--ui-panel-radius)] shadow-[var(--ui-shadow-popover)] overflow-hidden flex flex-col max-h-[320px]"
+            >
+              <div className="p-2 border-b border-[var(--ui-line)] shrink-0 relative bg-[var(--ui-surface-subtle)]">
+                <Search
+                  size={14}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ui-muted)]"
+                />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder={t('common.search', 'Buscar...')}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-[var(--ui-surface)] border border-[var(--ui-line)] rounded-[var(--ui-radius-sm)] py-1.5 pl-8 pr-3 text-sm text-[var(--ui-ink)] focus:outline-none focus:border-[var(--ui-focus)] transition-colors"
+                />
+              </div>
 
-            <div className="overflow-y-auto flex-1 p-1 custom-scrollbar">
-              <button
-                type="button"
-                onClick={() => handleSelect(null)}
-                className="w-full text-left px-3 py-2 text-sm text-steel-400 hover:bg-steel-800 hover:text-steel-200 rounded-md transition-colors"
-              >
-                Ninguno
-              </button>
+              <div className="overflow-y-auto flex-1 p-1.5 custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => handleSelect(null)}
+                  className="w-full text-left px-3 py-2 text-sm text-[var(--ui-muted)] hover:bg-[var(--ui-surface-hover)] hover:text-[var(--ui-ink)] rounded-[var(--ui-radius-sm)] transition-colors cursor-pointer"
+                >
+                  Ninguno
+                </button>
 
-              {Object.keys(groupedUnits).length === 0 ? (
-                <div className="py-4 text-center text-sm text-steel-500">
-                  {t('common.noResults', 'No se encontraron resultados')}
-                </div>
-              ) : (
-                Object.entries(groupedUnits).map(([magnitude, groupUnits]) => (
-                  <div key={magnitude} className="mb-2 last:mb-0">
-                    <div className="px-3 py-1.5 text-xs font-semibold text-steel-500 uppercase tracking-wider bg-steel-900/90 sticky top-0 backdrop-blur-sm z-10">
-                      {magnitude}
-                    </div>
-                    {groupUnits.map(unit => {
-                      const isSelected = value === unit.id;
-                      return (
-                        <button
-                          key={unit.id}
-                          type="button"
-                          onClick={() => handleSelect(unit.id)}
-                          className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-indigo-500/10 text-indigo-400'
-                              : 'text-steel-200 hover:bg-steel-800'
-                          }`}
-                        >
-                          <span className="truncate pr-2">{unit.description} <span className="text-steel-500 text-xs ml-1 whitespace-nowrap">({unit.symbology})</span></span>
-                          {isSelected && <Check size={14} className="text-indigo-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
+                {Object.keys(groupedUnits).length === 0 ? (
+                  <div className="py-4 text-center text-sm text-[var(--ui-muted)]">
+                    {t('common.noResults', 'No se encontraron resultados')}
                   </div>
-                ))
-              )}
-            </div>
-          </motion.div>
+                ) : (
+                  Object.entries(groupedUnits).map(([magnitude, groupUnits]) => (
+                    <div key={magnitude} className="mb-2 last:mb-0">
+                      <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--ui-muted)] uppercase tracking-wider bg-[var(--ui-surface-subtle)] sticky top-0 backdrop-blur-sm z-10 rounded-[var(--ui-radius-sm)]">
+                        {magnitude}
+                      </div>
+                      {groupUnits.map(unit => {
+                        const isSelected = value === unit.id;
+                        return (
+                          <button
+                            key={unit.id}
+                            type="button"
+                            onClick={() => handleSelect(unit.id)}
+                            className={`w-full text-left px-3 py-2 text-sm rounded-[var(--ui-radius-sm)] transition-colors flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-[var(--ui-tint)] text-[var(--ui-accent)] font-medium'
+                                : 'text-[var(--ui-ink)] hover:bg-[var(--ui-surface-hover)]'
+                            }`}
+                          >
+                            <span className="truncate pr-2">
+                              {unit.description}{' '}
+                              <span className="text-[var(--ui-muted)] text-xs ml-1 whitespace-nowrap font-mono">
+                                ({unit.symbology})
+                              </span>
+                            </span>
+                            {isSelected && (
+                              <Check size={14} className="text-[var(--ui-accent)] shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>,
-        document.body
+        document.body,
       )}
     </div>
   );

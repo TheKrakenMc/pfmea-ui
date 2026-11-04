@@ -206,10 +206,15 @@ export const CorporateWorksheetTable: React.FC<CorporateWorksheetTableProps> = (
   };
 
   const handleAddRowForOperation = (stationName: string, stepId?: number) => {
+    const masterStep = stepId ? flowchartSteps.find(s => s.id === stepId) : undefined;
+    const relatedStepIds = masterStep
+      ? new Set(flowchartSteps.filter(s => s.step_number === masterStep.step_number).map(s => s.id))
+      : new Set(stepId ? [stepId] : []);
+
     // Find index of last row belonging to this operation
     const lastOpRowIndex = rows
       .map((r, i) => ({ r, i }))
-      .filter(({ r }) => (stepId && r.flowchart_step_id === stepId) || r.station_operation === stationName)
+      .filter(({ r }) => (r.flowchart_step_id && relatedStepIds.has(r.flowchart_step_id)) || r.station_operation === stationName)
       .pop()?.i;
 
     const newRow: WorksheetRow = {

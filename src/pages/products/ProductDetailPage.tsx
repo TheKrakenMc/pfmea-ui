@@ -1,20 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShieldCheck, Save, Trash2, Loader2, Package, Tag, Clock, Maximize2, Scale, Timer, Zap, History, Send, CheckCircle, FileText } from 'lucide-react';
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Save,
+  Trash2,
+  Loader2,
+  Package,
+  Tag,
+  Clock,
+  Maximize2,
+  Scale,
+  Timer,
+  Zap,
+  History,
+  Send,
+  CheckCircle,
+  FileText,
+  AlertTriangle,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { getProduct, updateProduct, deleteProduct, listTechnologies, uploadImage } from '../../services/productService';
+import {
+  getProduct,
+  updateProduct,
+  deleteProduct,
+  listTechnologies,
+  uploadImage,
+} from '../../services/productService';
 import { listCustomers } from '../../services/customerService';
 import { useRBAC } from '../../hooks/useRBAC';
 import type { Product, Technology } from '../../types/product.types';
 import type { Customer } from '../../types/customer.types';
+import { DocumentStatus } from '../../components/ui/DocumentStatus';
 import { TechnologyBadge } from '../../components/products/TechnologyBadge';
 import { TechnologyMultiSelect } from '../../components/products/TechnologyMultiSelect';
 import { ProductParameterManager } from '../../components/products/ProductParameterManager';
 import { ProductHistoryModal } from '../../components/products/ProductHistoryModal';
 import { CreateRevisionModal } from '../../components/products/CreateRevisionModal';
+import {
+  EASING,
+  SPRING,
+  backdropVariants,
+  modalCardVariants,
+  staggerContainerVariants,
+  staggerItemVariants,
+} from '../../utils/motion';
 import axiosClient from '../../api/axiosClient';
 
 type TabType = 'master' | 'specs' | 'parameters' | 'traceability';
@@ -39,8 +72,8 @@ export const ProductDetailPage: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
 
-  const isReleased = ['Released','Archived'].includes(product?.status || '');
-  const canManageProduct=role==='Administrator' || role==='PFMEA Owner';
+  const isReleased = ['Released', 'Archived'].includes(product?.status || '');
+  const canManageProduct = role === 'Administrator' || role === 'PFMEA Owner';
   const effectiveCanEdit = canEditProduct && !isReleased;
 
   // Form State
@@ -69,7 +102,7 @@ export const ProductDetailPage: React.FC = () => {
         const [prodData, techData, custData] = await Promise.all([
           getProduct(Number(id)),
           listTechnologies(),
-          listCustomers()
+          listCustomers(),
         ]);
 
         setProduct(prodData);
@@ -90,7 +123,7 @@ export const ProductDetailPage: React.FC = () => {
           rate_per_hour: prodData.rate_per_hour || null,
           customer_id: prodData.customer?.id || null,
           status: prodData.status || 'active',
-          technology_ids: prodData.technologies.map(t => t.id),
+          technology_ids: prodData.technologies.map(tech => tech.id),
         });
         setSelectedFile(null);
       } catch (error) {
@@ -154,215 +187,260 @@ export const ProductDetailPage: React.FC = () => {
 
   if (isLoading || rbacLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-steel-950">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-      </div>
+      <section className="workspace-page" aria-busy="true">
+        <div className="workspace-grid" aria-hidden="true">
+          {[0, 1].map(item => (
+            <div key={item} className="workspace-skeleton">
+              <span />
+              <span />
+              <span />
+            </div>
+          ))}
+        </div>
+      </section>
     );
   }
 
   if (!product) return null;
 
+  const tabs: { id: TabType; label: string }[] = [
+    { id: 'master', label: t('products.detail.masterData') },
+    { id: 'specs', label: t('products.detail.specs', 'Dimensiones & Specs') },
+    { id: 'parameters', label: t('products.detail.parameters', 'Parámetros') },
+    { id: 'traceability', label: t('products.detail.traceability') },
+  ];
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="p-6 md:p-8 w-full max-w-7xl mx-auto min-h-screen"
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: EASING.out } }}
+      exit={{ opacity: 0, y: -6, transition: { duration: 0.15, ease: EASING.in } }}
+      className="workspace-page"
+      aria-label={product.part_number ?? undefined}
     >
-      <div className="mb-6 flex items-center gap-4">
-        <button
-          onClick={() => navigate('/products')}
-          className="p-2 rounded-lg bg-steel-900 border border-steel-800 text-steel-400 hover:text-steel-100 hover:bg-steel-800 transition-colors focus-ring"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-steel-100 flex items-center gap-3">
-            <Package className="text-forge-400" />
-            {product.part_number}
-          </h1>
+      {/* ─── Header & Action Bar ─── */}
+      <header className="detail-header">
+        <div className="detail-identity">
+          <button
+            type="button"
+            onClick={() => navigate('/products')}
+            className="ui-icon-button"
+            aria-label={t('common.back', 'Volver')}
+          >
+            <ArrowLeft size={19} />
+          </button>
+          <div className="detail-title-group">
+            <h1 className="detail-title">
+              <Package size={22} aria-hidden="true" />
+              <span>{product.part_number}</span>
+            </h1>
+            <p className="detail-subtitle">
+              #{product.id} · V{product.version ?? 1}
+              {product.customer?.company_name ? ` · ${product.customer.company_name}` : ''}
+            </p>
+          </div>
         </div>
 
-        {effectiveCanEdit && (
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all font-medium text-sm shadow-lg shadow-indigo-900/20 cursor-pointer focus-ring disabled:bg-indigo-900/60 disabled:text-indigo-200"
-          >
-            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {t('products.actions.save')}
-          </button>
-        )}
-
-        {/* Status Badge & Actions */}
-        <div className="flex items-center gap-2 border-l border-steel-800 pl-4 ml-2">
-          <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${
-            product.status === 'Draft' ? 'bg-steel-800/50 text-steel-300 border-steel-700' :
-            product.status === 'In Review' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-            product.status === 'Released' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-            'bg-gray-500/10 text-gray-400 border-gray-500/20'
-          }`}>
-            {product.status === 'Released' && <CheckCircle size={14} />}
-            {t(`productVersioning.status${product.status?.replace(' ', '')}`, product.status || 'Draft')}
-            <span className="ml-1 opacity-75">V{product.version}</span>
+        <div className="detail-actions">
+          <div className="flex items-center gap-2">
+            <DocumentStatus status={product.status} />
+            <span className="document-card-id">V{product.version}</span>
           </div>
 
+          <div className="detail-divider" aria-hidden="true" />
+
           <button
+            type="button"
             onClick={() => setIsHistoryModalOpen(true)}
             title={t('productVersioning.historyTitle')}
-            className="p-2 rounded-lg bg-steel-900 border border-steel-800 text-steel-400 hover:text-indigo-400 hover:bg-steel-800 transition-colors"
+            aria-label={t('productVersioning.historyTitle')}
+            className="ui-icon-button"
           >
             <History size={18} />
           </button>
 
-          {['Draft','active'].includes(product.status || '') && canManageProduct && (
+          {['Draft', 'active'].includes(product.status || '') && canManageProduct && (
             <button
+              type="button"
               onClick={async () => {
                 try {
                   await axiosClient.put(`/products/${id}/status`, { status: 'In Review' });
                   window.location.reload();
-                } catch { toast.error("Error updating status"); }
+                } catch {
+                  toast.error('Error updating status');
+                }
               }}
               title={t('productVersioning.sendToReview')}
-              className="p-2 rounded-lg bg-steel-900 border border-steel-800 text-amber-400 hover:bg-amber-500/10 transition-colors"
+              aria-label={t('productVersioning.sendToReview')}
+              className="ui-icon-button ui-button-warning"
             >
-              <Send size={18} />
+              <Send size={17} />
             </button>
           )}
 
           {product.status === 'In Review' && canManageProduct && (
             <button
+              type="button"
               onClick={async () => {
                 try {
                   await axiosClient.put(`/products/${id}/status`, { status: 'Released' });
                   window.location.reload();
-                } catch { toast.error("Error updating status"); }
+                } catch {
+                  toast.error('Error updating status');
+                }
               }}
               title={t('productVersioning.release')}
-              className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-colors flex items-center gap-2 text-sm font-medium"
+              className="ui-button ui-button-success"
             >
               <CheckCircle size={16} />
-              {t('productVersioning.release')}
+              <span>{t('productVersioning.release')}</span>
             </button>
           )}
 
           {isReleased && canManageProduct && (
             <button
+              type="button"
               onClick={() => setIsRevisionModalOpen(true)}
-              className="p-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-colors flex items-center gap-2 text-sm font-medium"
+              className="ui-button"
+              data-active="true"
             >
               <FileText size={16} />
-              {t('productVersioning.createRevisionBtn')}
+              <span>{t('productVersioning.createRevisionBtn')}</span>
             </button>
           )}
-        </div>
-      </div>
 
-      {product.needs_review && <p role="status" className="mx-6 p-3 rounded-lg bg-amber-100 dark:bg-amber-950">Documento histórico señalado para revisión. Conserva su aprobación; inicia una nueva revisión para modificarlo.</p>}
-      {!effectiveCanEdit && (
-        <div className="mb-6 p-4 rounded-xl bg-review-500/10 border border-review-500/20 flex items-center gap-3">
-          <ShieldCheck className="text-review-400" size={24} />
-          <p className="text-review-200 text-sm">{t('rbac.readOnlyMode')}</p>
+          {effectiveCanEdit && (
+            <div className="workspace-primary">
+              <button type="button" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{t('products.actions.save')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* ─── Contextual Status Banners ─── */}
+      {product.needs_review && (
+        <div role="status" className="detail-banner" data-tone="warning">
+          <AlertTriangle size={18} />
+          <p>
+            Documento histórico señalado para revisión. Conserva su aprobación; inicia una nueva
+            revisión para modificarlo.
+          </p>
         </div>
       )}
 
-      <div className="flex gap-4 border-b border-steel-800 mb-6">
-        <button
-          onClick={() => setActiveTab('master')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'master' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-          }`}
-        >
-          {t('products.detail.masterData')}
-        </button>
+      {!effectiveCanEdit && (
+        <div className="detail-banner" data-tone="info">
+          <ShieldCheck size={20} />
+          <p>{t('rbac.readOnlyMode')}</p>
+        </div>
+      )}
 
-        <button
-          onClick={() => setActiveTab('specs')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'specs' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-          }`}
-        >
-          {t('products.detail.specs', 'Dimensiones & Specs')}
-        </button>
+      {/* ─── Origin-Aware Animated Tab Navigation ─── */}
+      <nav className="detail-tabs" role="tablist" aria-label={product.part_number ?? undefined}>
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              data-active={isActive || undefined}
+              onClick={() => setActiveTab(tab.id)}
+              className="detail-tab"
+            >
+              <span>{tab.label}</span>
+              {isActive && (
+                <motion.span
+                  layoutId="product-detail-tab-indicator"
+                  className="detail-tab-indicator"
+                  transition={SPRING.snappy}
+                />
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
-        <button
-          onClick={() => setActiveTab('parameters')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'parameters' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-          }`}
-        >
-          {t('products.detail.parameters', 'Parámetros')}
-        </button>
-        <button
-          onClick={() => setActiveTab('traceability')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'traceability' ? 'border-forge-500 text-forge-400' : 'border-transparent text-steel-400 hover:text-steel-200'
-          }`}
-        >
-          {t('products.detail.traceability')}
-        </button>
-      </div>
-
+      {/* ─── Tab Panels ─── */}
       <AnimatePresence mode="wait">
         {activeTab === 'master' && (
           <motion.div
             key="master"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="glass-card p-6 grid grid-cols-1 md:grid-cols-2 gap-6 w-full"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASING.out } }}
+            exit={{ opacity: 0, y: -4, transition: { duration: 0.14, ease: EASING.in } }}
+            className="detail-panel detail-form-grid"
           >
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('products.form.partNumber')}</label>
+            <div className="detail-field">
+              <label htmlFor="part_number" className="detail-label">
+                {t('products.form.partNumber')}
+              </label>
               <input
+                id="part_number"
                 type="text"
                 value={formData.part_number}
-                onChange={(e) => setFormData({ ...formData, part_number: e.target.value })}
+                onChange={e => setFormData({ ...formData, part_number: e.target.value })}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-mono disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-input ui-input-mono"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('products.form.customerPartNumber')}</label>
+            <div className="detail-field">
+              <label htmlFor="customer_part_number" className="detail-label">
+                {t('products.form.customerPartNumber')}
+              </label>
               <input
+                id="customer_part_number"
                 type="text"
                 value={formData.customer_part_number}
-                onChange={(e) => setFormData({ ...formData, customer_part_number: e.target.value })}
+                onChange={e => setFormData({ ...formData, customer_part_number: e.target.value })}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-mono disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-input ui-input-mono"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('product.engineeringLevel', 'Nivel de Ingeniería')}</label>
+            <div className="detail-field">
+              <label htmlFor="engineering_level" className="detail-label">
+                {t('product.engineeringLevel', 'Nivel de Ingeniería')}
+              </label>
               <input
+                id="engineering_level"
                 type="text"
                 value={formData.engineering_level || ''}
-                onChange={(e) => setFormData({ ...formData, engineering_level: e.target.value })}
+                onChange={e => setFormData({ ...formData, engineering_level: e.target.value })}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-medium disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-input"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('product.drawing', 'Dibujo')}</label>
+            <div className="detail-field">
+              <label htmlFor="drawing" className="detail-label">
+                {t('product.drawing', 'Dibujo')}
+              </label>
               <input
+                id="drawing"
                 type="text"
                 value={formData.drawing || ''}
-                onChange={(e) => setFormData({ ...formData, drawing: e.target.value })}
+                onChange={e => setFormData({ ...formData, drawing: e.target.value })}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 font-medium disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-input"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('product.stage', 'Etapa')}</label>
+            <div className="detail-field">
+              <label htmlFor="stage" className="detail-label">
+                {t('product.stage', 'Etapa')}
+              </label>
               <select
+                id="stage"
                 value={formData.stage || ''}
-                onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
+                onChange={e => setFormData({ ...formData, stage: e.target.value })}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-select"
               >
                 <option value="">{t('product.selectStage', 'Seleccionar etapa...')}</option>
                 <option value="Prototipo">{t('product.stagePrototype', 'Prototipo')}</option>
@@ -371,78 +449,97 @@ export const ProductDetailPage: React.FC = () => {
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('product.image', 'Imagen')}</label>
+            <div className="detail-field">
+              <label htmlFor="product_image" className="detail-label">
+                {t('product.image', 'Imagen')}
+              </label>
               <input
+                id="product_image"
                 type="file"
                 accept="image/*"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-3.5 py-1.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-steel-100 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer file:font-semibold"
+                className="ui-input ui-file-input"
               />
               {formData.image_url && !selectedFile && (
-                <p className="text-xs text-steel-500 mt-1">
-                  Archivo actual: {formData.image_url}
-                </p>
+                <p className="detail-subtitle">Archivo actual: {formData.image_url}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('products.form.customer')}</label>
+            <div className="detail-field">
+              <label htmlFor="customer_id" className="detail-label">
+                {t('products.form.customer')}
+              </label>
               <select
+                id="customer_id"
                 value={formData.customer_id || ''}
-                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value ? Number(e.target.value) : null })}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    customer_id: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
                 disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+                className="ui-select"
               >
                 <option value="">Ninguno</option>
                 {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.company_name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.company_name}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-steel-400">{t('products.form.status')}</label>
-              <input value={formData.status} readOnly aria-label={t('products.form.status')} className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100" />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-steel-400">{t('products.form.description')}</label>
-              <textarea
-                rows={4}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                disabled={!effectiveCanEdit}
-                className="w-full bg-steel-950 border border-steel-700 rounded-lg px-4 py-2.5 text-steel-100 resize-none disabled:opacity-60 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none"
+            <div className="detail-field">
+              <label htmlFor="product_status" className="detail-label">
+                {t('products.form.status')}
+              </label>
+              <input
+                id="product_status"
+                value={formData.status}
+                readOnly
+                aria-label={t('products.form.status')}
+                className="ui-input"
               />
             </div>
-            <div className="md:col-span-2 pt-6 border-t border-steel-800">
-              <h3 className="text-steel-100 font-medium mb-4 flex items-center gap-2">
-                <Tag size={18} className="text-forge-400" />
-                {t('products.detail.technologies', 'Tecnologías')}
+
+            <div className="detail-field detail-field-span">
+              <label htmlFor="description" className="detail-label">
+                {t('products.form.description')}
+              </label>
+              <textarea
+                id="description"
+                rows={4}
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                disabled={!effectiveCanEdit}
+                className="ui-textarea resize-none"
+              />
+            </div>
+
+            <div className="detail-section-divider">
+              <h3 className="detail-section-title">
+                <Tag size={17} />
+                <span>{t('products.detail.technologies', 'Tecnologías')}</span>
               </h3>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2.5">
                 {effectiveCanEdit ? (
                   <TechnologyMultiSelect
                     technologies={technologies}
                     selectedIds={formData.technology_ids}
-                    onChange={(ids) => {
+                    onChange={ids => {
                       setFormData({ ...formData, technology_ids: ids });
                       toast.info('Tecnologías actualizadas. No olvides guardar.');
                     }}
                   />
+                ) : formData.technology_ids.length === 0 ? (
+                  <p className="detail-subtitle">No hay tecnologías asignadas.</p>
                 ) : (
-                  formData.technology_ids.length === 0 ? (
-                    <p className="text-steel-500 text-sm">No hay tecnologías asignadas.</p>
-                  ) : (
-                    technologies
-                      .filter(t => formData.technology_ids.includes(t.id))
-                      .map(tech => (
-                        <TechnologyBadge key={tech.id} technology={tech} />
-                      ))
-                  )
+                  technologies
+                    .filter(tech => formData.technology_ids.includes(tech.id))
+                    .map(tech => <TechnologyBadge key={tech.id} technology={tech} />)
                 )}
               </div>
             </div>
@@ -452,17 +549,18 @@ export const ProductDetailPage: React.FC = () => {
         {activeTab === 'specs' && (
           <motion.div
             key="specs"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+            variants={staggerContainerVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -4, transition: { duration: 0.14, ease: EASING.in } }}
+            className="detail-specs-grid"
           >
             {/* Dimensions Card */}
-            <div className="glass-card p-6 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-2">
-                <Maximize2 size={24} />
+            <motion.div variants={staggerItemVariants} className="detail-spec-card">
+              <div className="detail-spec-icon">
+                <Maximize2 size={20} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
+              <h4 className="detail-spec-label">
                 {t('products.detail.specsCards.dimensions', 'DIMENSIONES')}
               </h4>
               {effectiveCanEdit ? (
@@ -470,110 +568,130 @@ export const ProductDetailPage: React.FC = () => {
                   type="text"
                   placeholder="Ej. 1540 x 280 x 62 mm"
                   value={formData.dimensions || ''}
-                  onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                  className="w-full bg-steel-950/50 border border-transparent hover:border-steel-700 focus:border-indigo-500 focus:bg-steel-950 rounded-lg px-2 py-1.5 text-center text-lg font-mono font-medium text-steel-100 focus:outline-none transition-colors"
+                  onChange={e => setFormData({ ...formData, dimensions: e.target.value })}
+                  className="ui-input ui-input-mono"
                 />
               ) : (
-                <p className="text-lg font-mono font-medium text-steel-100">
-                  {formData.dimensions || '-'}
-                </p>
+                <p className="detail-spec-value">{formData.dimensions || '-'}</p>
               )}
-            </div>
+            </motion.div>
 
             {/* Weight Card */}
-            <div className="glass-card p-6 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-2">
-                <Scale size={24} />
+            <motion.div variants={staggerItemVariants} className="detail-spec-card">
+              <div className="detail-spec-icon" data-tone="success">
+                <Scale size={20} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
+              <h4 className="detail-spec-label">
                 {t('products.detail.specsCards.weight', 'PESO (KG)')}
               </h4>
               {effectiveCanEdit ? (
-                <div className="relative w-full max-w-[140px]">
+                <div className="relative w-full">
                   <input
                     type="number"
                     step="any"
                     placeholder="Ej. 2.65"
                     value={formData.weight ?? ''}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value ? parseFloat(e.target.value) : null })}
-                    className="w-full bg-steel-950/50 border border-transparent hover:border-steel-700 focus:border-indigo-500 focus:bg-steel-950 rounded-lg px-2 py-1.5 text-center text-lg font-mono font-medium text-steel-100 focus:outline-none transition-colors"
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        weight: e.target.value ? parseFloat(e.target.value) : null,
+                      })
+                    }
+                    className="ui-input ui-input-mono pr-10"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-500 text-sm font-medium pointer-events-none">kg</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none text-[var(--ui-muted)]">
+                    kg
+                  </span>
                 </div>
               ) : (
-                <p className="text-lg font-mono font-medium text-steel-100">
+                <p className="detail-spec-value">
                   {formData.weight ? `${formData.weight} kg` : '-'}
                 </p>
               )}
-            </div>
+            </motion.div>
 
             {/* Cycle Time Card */}
-            <div className="glass-card p-6 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 mb-2">
-                <Timer size={24} />
+            <motion.div variants={staggerItemVariants} className="detail-spec-card">
+              <div className="detail-spec-icon" data-tone="warning">
+                <Timer size={20} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
+              <h4 className="detail-spec-label">
                 {t('products.detail.specsCards.cycleTime', 'TIEMPO CICLO')}
               </h4>
               {effectiveCanEdit ? (
-                <div className="relative w-full max-w-[140px]">
+                <div className="relative w-full">
                   <input
                     type="number"
                     step="any"
                     placeholder="Ej. 88"
                     value={formData.cycle_time ?? ''}
-                    onChange={(e) => setFormData({ ...formData, cycle_time: e.target.value ? parseFloat(e.target.value) : null })}
-                    className="w-full bg-steel-950/50 border border-transparent hover:border-steel-700 focus:border-indigo-500 focus:bg-steel-950 rounded-lg px-2 py-1.5 text-center text-lg font-mono font-medium text-steel-100 focus:outline-none transition-colors"
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        cycle_time: e.target.value ? parseFloat(e.target.value) : null,
+                      })
+                    }
+                    className="ui-input ui-input-mono pr-8"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-500 text-sm font-medium pointer-events-none">s</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none text-[var(--ui-muted)]">
+                    s
+                  </span>
                 </div>
               ) : (
-                <p className="text-lg font-mono font-medium text-steel-100">
+                <p className="detail-spec-value">
                   {formData.cycle_time ? `${formData.cycle_time}s` : '-'}
                 </p>
               )}
-            </div>
+            </motion.div>
 
             {/* Rate / Hour Card */}
-            <div className="glass-card p-6 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400 mb-2">
-                <Zap size={24} />
+            <motion.div variants={staggerItemVariants} className="detail-spec-card">
+              <div className="detail-spec-icon" data-tone="danger">
+                <Zap size={20} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-steel-500">
+              <h4 className="detail-spec-label">
                 {t('products.detail.specsCards.ratePerHour', 'RATE / HORA')}
               </h4>
               {effectiveCanEdit ? (
-                <div className="relative w-full max-w-[160px]">
+                <div className="relative w-full">
                   <input
                     type="number"
                     step="any"
                     placeholder="Ej. 40"
                     value={formData.rate_per_hour ?? ''}
-                    onChange={(e) => setFormData({ ...formData, rate_per_hour: e.target.value ? parseFloat(e.target.value) : null })}
-                    className="w-full bg-steel-950/50 border border-transparent hover:border-steel-700 focus:border-indigo-500 focus:bg-steel-950 rounded-lg pl-2 pr-12 py-1.5 text-center text-lg font-mono font-medium text-steel-100 focus:outline-none transition-colors"
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        rate_per_hour: e.target.value ? parseFloat(e.target.value) : null,
+                      })
+                    }
+                    className="ui-input ui-input-mono pr-14"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-500 text-sm font-medium pointer-events-none">pz/hr</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none text-[var(--ui-muted)]">
+                    pz/hr
+                  </span>
                 </div>
               ) : (
-                <p className="text-lg font-mono font-medium text-steel-100">
+                <p className="detail-spec-value">
                   {formData.rate_per_hour ? `${formData.rate_per_hour} pz/hr` : '-'}
                 </p>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
 
         {activeTab === 'parameters' && (
           <motion.div
             key="parameters"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="glass-card p-6 w-full"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASING.out } }}
+            exit={{ opacity: 0, y: -4, transition: { duration: 0.14, ease: EASING.in } }}
+            className="detail-panel"
           >
-            <ProductParameterManager readOnly={!effectiveCanEdit}
+            <ProductParameterManager
+              readOnly={!effectiveCanEdit}
               productId={Number(id)}
-              technologies={technologies.filter(t => formData.technology_ids.includes(t.id))}
+              technologies={technologies.filter(tech => formData.technology_ids.includes(tech.id))}
             />
           </motion.div>
         )}
@@ -581,89 +699,109 @@ export const ProductDetailPage: React.FC = () => {
         {activeTab === 'traceability' && (
           <motion.div
             key="traceability"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="glass-card p-6 grid grid-cols-1 md:grid-cols-2 gap-6 w-full"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASING.out } }}
+            exit={{ opacity: 0, y: -4, transition: { duration: 0.14, ease: EASING.in } }}
+            className="detail-panel"
           >
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-full bg-steel-800 flex items-center justify-center text-steel-400">
-                <Clock size={24} />
+            <div className="flex items-start gap-3.5 mb-6">
+              <div className="detail-spec-icon">
+                <Clock size={20} />
               </div>
               <div>
-                <h3 className="text-steel-100 font-medium">Historial de Registro</h3>
-                <p className="text-steel-400 text-sm mt-1">Información de creación y última actualización.</p>
+                <h3 className="detail-section-title mb-1">Historial de Registro</h3>
+                <p className="detail-subtitle">
+                  Información de creación y última actualización.
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-steel-950 rounded-xl p-5 border border-steel-800">
+            <div className="detail-trace-grid">
               <div>
-                <p className="text-steel-500 text-sm font-medium mb-1">Fecha de Creación</p>
-                <p className="text-steel-200">{new Date(product.created_at).toLocaleString()}</p>
+                <p className="detail-label mb-1">Fecha de Creación</p>
+                <p className="font-medium text-[var(--ui-ink)]">
+                  {new Date(product.created_at).toLocaleString()}
+                </p>
               </div>
               <div>
-                <p className="text-steel-500 text-sm font-medium mb-1">Última Actualización</p>
-                <p className="text-steel-200">{new Date(product.updated_at).toLocaleString()}</p>
+                <p className="detail-label mb-1">Última Actualización</p>
+                <p className="font-medium text-[var(--ui-ink)]">
+                  {new Date(product.updated_at).toLocaleString()}
+                </p>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* ─── Destructive Action Footer ─── */}
       {canDeleteProduct && effectiveCanEdit && (
-        <div className="mt-8 flex justify-end">
+        <div className="detail-footer-danger">
           <button
+            type="button"
             onClick={() => setShowDeleteModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-alert-400 hover:text-white hover:bg-alert-500 border border-alert-500/30 rounded-lg transition-colors focus-ring"
+            className="ui-button ui-button-danger"
           >
             <Trash2 size={16} />
-            {t('products.actions.delete')}
+            <span>{t('products.actions.delete')}</span>
           </button>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ─── Delete Confirmation Modal (Emil Kowalski Physics) ─── */}
       <AnimatePresence>
         {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              variants={backdropVariants}
+              className="absolute inset-0 bg-steel-950/75 backdrop-blur-sm"
               onClick={() => setShowDeleteModal(false)}
             />
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-steel-900 border border-steel-800 p-6 rounded-2xl shadow-2xl relative z-10 max-w-md w-full text-center"
+              variants={modalCardVariants}
+              className="detail-panel relative z-10 max-w-md w-full text-center shadow-2xl"
             >
-              <div className="w-16 h-16 bg-alert-500/10 text-alert-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={32} />
+              <div
+                className="detail-spec-icon mx-auto mb-4"
+                data-tone="danger"
+                style={{ width: 52, height: 52, borderRadius: 999 }}
+              >
+                <Trash2 size={24} />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{t('products.deleteModal.title')}</h3>
-              <p className="text-steel-400 mb-6">
-                {t('products.deleteModal.message').replace('{{partNumber}}', product.part_number || '')}
+              <h3 className="text-lg font-semibold text-[var(--ui-ink)] mb-2">
+                {t('products.deleteModal.title')}
+              </h3>
+              <p className="detail-subtitle mb-6">
+                {t('products.deleteModal.message').replace(
+                  '{{partNumber}}',
+                  product.part_number || '',
+                )}
               </p>
               <div className="flex gap-3 justify-center">
                 <button
+                  type="button"
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-5 py-2.5 bg-steel-800 text-steel-200 hover:bg-steel-700 rounded-xl font-medium transition-colors focus-ring"
+                  className="ui-button"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="px-5 py-2.5 bg-alert-500 hover:bg-alert-600 text-white rounded-xl font-medium transition-colors focus-ring flex items-center gap-2"
+                  className="ui-button ui-button-danger"
                 >
                   {isDeleting && <Loader2 size={16} className="animate-spin" />}
-                  Confirmar Eliminación
+                  <span>Confirmar Eliminación</span>
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -687,7 +825,7 @@ export const ProductDetailPage: React.FC = () => {
           }}
         />
       )}
-    </motion.div>
+    </motion.section>
   );
 };
 

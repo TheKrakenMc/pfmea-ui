@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Users, Edit, Copy, Archive, History } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { DocumentStatus } from '../../components/ui/DocumentStatus';
+import { useDocumentView } from '../../hooks/useDocumentView';
+import { loadCatalog } from '../../utils/loadCatalog';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Plus, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listProducts } from '../../services/productService';
 import { useRBAC } from '../../hooks/useRBAC';
@@ -16,6 +20,8 @@ export const ProductListPage: React.FC = () => {
   const { t } = useTranslation();
   const { canEditProduct } = useRBAC();
   const [products, setProducts] = useState<Product[]>([]);
+  const requestVersion = useRef(0);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [search, rawSetSearch] = useState('');
@@ -26,7 +32,7 @@ export const ProductListPage: React.FC = () => {
   const setSelectedCustomers = (value: Parameters<typeof rawSetSelectedCustomers>[0]) => { rawSetSelectedCustomers(value); setCurrentPage(1); };
   const [sortOrder, rawSetSortOrder] = useState<string>('date-desc');
   const setSortOrder = (value: Parameters<typeof rawSetSortOrder>[0]) => { rawSetSortOrder(value); setCurrentPage(1); };
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useDocumentView();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,23 +42,26 @@ export const ProductListPage: React.FC = () => {
 
 
   const fetchProducts = useCallback(async () => {
+    const request = ++requestVersion.current;
     try {
       setIsLoading(true);
+      setError(null);
       // We fetch all matching the search, then frontend filter the rest
-      const data = await listProducts({ q: search });
-      setProducts(data);
+      const data = await loadCatalog((skip, limit) => listProducts({ q: search, skip, limit }), () => request !== requestVersion.current);
+      if (request === requestVersion.current) setProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
+      if (request === requestVersion.current) setError(t('workspace:error'));
     } finally {
-      setIsLoading(false);
+      if (request === requestVersion.current) setIsLoading(false);
     }
-  }, [search]);
+  }, [search, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchProducts();
     }, 300); // Debounce
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); requestVersion.current += 1; };
   }, [search, fetchProducts]);
 
   // Extract unique options for filters
@@ -98,12 +107,14 @@ export const ProductListPage: React.FC = () => {
     return filtered;
   }, [products, selectedStatuses, selectedCustomers, sortOrder]);
 
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(start, start + itemsPerPage);
-  }, [filteredProducts, currentPage, itemsPerPage]);
+  const safeCurrentPage = Math.min(currentPage, Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage)));
 
-  const hasActiveFilters = selectedStatuses.length > 0 || selectedCustomers.length > 0 || sortOrder !== 'date-desc';
+  const paginatedProducts = useMemo(() => {
+    const start = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, safeCurrentPage, itemsPerPage]);
+
+  const hasActiveFilters = search.trim().length > 0 || selectedStatuses.length > 0 || selectedCustomers.length > 0 || sortOrder !== 'date-desc';
   const handleResetFilters = () => {
     setSelectedStatuses([]);
     setSelectedCustomers([]);
@@ -142,7 +153,7 @@ export const ProductListPage: React.FC = () => {
   const actionButton = canEditProduct ? (
     <button
       onClick={() => setIsCreateModalOpen(true)}
-      className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all font-medium text-sm shadow-lg shadow-indigo-900/20 cursor-pointer focus-ring"
+      className="workspace-create"
     >
       <Plus size={16} />
       {t('products.actions.create', 'Nuevo Producto')}
@@ -152,6 +163,11 @@ export const ProductListPage: React.FC = () => {
   return (
     <>
       <DataLayout
+        resultCount={filteredProducts.length}
+        error={error}
+        onRetry={fetchProducts}
+        hasActiveFilters={hasActiveFilters}
+        onReset={handleResetFilters}
         title={t('products.title')}
         subtitle={t('products.subtitle')}
         isLoading={isLoading}
@@ -164,78 +180,24 @@ export const ProductListPage: React.FC = () => {
         isEmpty={filteredProducts.length === 0}
         extraFilters={filterSelect}
         gridContent={
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="workspace-grid">
             {paginatedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
         }
         tableContent={
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-sm text-steel-300">
-              <thead className="bg-steel-900/50 text-xs uppercase text-steel-400 border-b border-steel-800">
-                <tr>
-                  <th className="px-6 py-4 font-medium">{t('products.form.partNumber')}</th>
-                  <th className="px-6 py-4 font-medium">{t('products.form.customer')}</th>
-                  <th className="px-6 py-4 font-medium">{t('products.form.description')}</th>
-                  <th className="px-6 py-4 font-medium">{t('products.form.status')}</th>
-                  <th className="px-6 py-4 font-medium text-right w-24">{t('products.table.actions', 'Actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-steel-800">
-                {paginatedProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-steel-800/30 transition-colors group cursor-pointer">
-                    <td className="px-6 py-4 font-mono font-medium text-steel-200">
-                      {product.part_number}
-                    </td>
-                    <td className="px-6 py-4">
-                      {product.customer?.company_name || '-'}
-                    </td>
-                    <td className="px-6 py-4 max-w-xs truncate">
-                      {product.description || '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-steel-800 text-steel-300">
-                        {product.status || 'Draft'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          className="p-1.5 text-steel-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors focus-ring"
-                          title={t('common.edit', 'Editar')}
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          className="p-1.5 text-steel-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors focus-ring"
-                          title={t('common.duplicate', 'Duplicar')}
-                        >
-                          <Copy size={16} />
-                        </button>
-                        <button
-                          className="p-1.5 text-steel-400 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors focus-ring"
-                          title={t('common.archive', 'Archivar')}
-                        >
-                          <Archive size={16} />
-                        </button>
-                        <button
-                          className="p-1.5 text-steel-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors focus-ring"
-                          title={t('common.history', 'Historial')}
-                        >
-                          <History size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="workspace-table"><thead><tr>
+            {['part', 'customer', 'description', 'status'].map(key => <th scope="col" key={key}>{t(`workspace:${key}`)}</th>)}
+          </tr></thead><tbody>{paginatedProducts.map(product => <tr key={product.id}>
+            <td><Link className="workspace-table-title" to={`/products/${product.id}`}>{product.part_number || `#${product.id}`}</Link></td>
+            <td>{product.customer?.company_name || '—'}</td><td>{product.description || '—'}</td>
+            <td><DocumentStatus status={product.status} /></td>
+          </tr>)}</tbody></table>
         }
         pagination={
           <Pagination
-            currentPage={currentPage}
+            currentPage={safeCurrentPage}
             totalItems={filteredProducts.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}

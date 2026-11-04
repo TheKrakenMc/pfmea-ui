@@ -1,0 +1,94 @@
+:root {
+  /* ─── Surface & Ink Hierarchy (Impeccable Light) ─── */
+  --ui-ground: #f5f7fa;
+  --ui-surface: #ffffff;
+  --ui-surface-subtle: #f8fafc;
+  --ui-surface-hover: #f1f5f9;
+  --ui-ink: #172b45;
+  --ui-muted: #59697d;
+  --ui-line: #dce3ec;
+  --ui-line-strong: #c4cfde;
+
+  /* ─── Interactive & Accent ─── */
+  --ui-accent: #245ac0;
+  --ui-primary: #245ac0;
+  --ui-primary-hover: #194aab;
+  --ui-on-primary: #ffffff;
+  --ui-tint: #edf3fd;
+  --ui-tint-hover: #e0ecfb;
+  --ui-focus: #3673dc;
+  --ui-focus-ring: rgba(54, 115, 220, 0.22);
+
+  /* ─── Semantic Status (WCAG AA+ Calibrated) ─── */
+  --ui-success: #246442;
+  --ui-success-bg: #edf8f1;
+  --ui-success-border: #c5e7d2;
+  --ui-warning: #87560c;
+  --ui-warning-bg: #fff5df;
+  --ui-warning-border: #f5dda9;
+  --ui-danger: #a52632;
+  --ui-danger-bg: #fff0f1;
+  --ui-danger-border: #f8cdd1;
+
+  /* ─── Tonal Ambient Elevation (Taste Anti-Slop) ─── */
+  --ui-shadow-sm: 0 1px 2px rgba(16, 36, 58, 0.04), 0 1px 1px rgba(16, 36, 58, 0.02);
+  --ui-shadow-md: 0 4px 12px -2px rgba(16, 36, 58, 0.06), 0 2px 4px -1px rgba(16, 36, 58, 0.04);
+  --ui-shadow-popover: 0 10px 28px -4px rgba(16, 36, 58, 0.10), 0 2px 6px -1px rgba(16, 36, 58, 0.05);
+  --ui-shadow-card-hover: 0 10px 24px -6px rgba(23, 43, 69, 0.08), 0 2px 6px -1px rgba(23, 43, 69, 0.04);
+
+  /* ─── Geometry & Layout ─── */
+  --ui-radius-sm: 7px;
+  --ui-radius: 10px;
+  --ui-panel-radius: 16px;
+  --ui-content-width: 1280px;
+  --ui-touch: 44px;
+  --ui-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* ─── Emil Kowalski Motion Tokens ─── */
+  --ui-duration-micro: 140ms;
+  --ui-duration: 180ms;
+  --ui-duration-exit: 135ms;
+  --ui-duration-panel: 240ms;
+  --ui-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ui-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.dark {
+  /* ─── Surface & Ink Hierarchy (Impeccable Dark) ─── */
+  --ui-ground: #111720;
+  --ui-surface: #19222e;
+  --ui-surface-subtle: #151d28;
+  --ui-surface-hover: #202b3a;
+  --ui-ink: #edf2f9;
+  --ui-muted: #a8b7c9;
+  --ui-line: #2d394b;
+  --ui-line-strong: #3e4e66;
+
+  /* ─── Interactive & Accent ─── */
+  --ui-accent: #91b8ff;
+  --ui-primary: #2b64d4;
+  --ui-primary-hover: #3872e3;
+  --ui-on-primary: #ffffff;
+  --ui-tint: #1b2c46;
+  --ui-tint-hover: #233859;
+  --ui-focus: #91b8ff;
+  --ui-focus-ring: rgba(145, 184, 255, 0.25);
+
+  /* ─── Semantic Status ─── */
+  --ui-success: #a6e4bc;
+  --ui-success-bg: #18372a;
+  --ui-success-border: #255440;
+  --ui-warning: #f5ce85;
+  --ui-warning-bg: #382d1b;
+  --ui-warning-border: #574528;
+  --ui-danger: #ffb9c1;
+  --ui-danger-bg: #3a2029;
+  --ui-danger-border: #5c3140;
+
+  /* ─── Tonal Ambient Elevation (Dark) ─── */
+  --ui-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --ui-shadow-md: 0 6px 16px -2px rgba(0, 0, 0, 0.32);
+  --ui-shadow-popover: 0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 2px 8px -1px rgba(0, 0, 0, 0.30);
+  --ui-shadow-card-hover: 0 12px 28px -6px rgba(0, 0, 0, 0.42), 0 2px 8px -1px rgba(0, 0, 0, 0.28);
+}

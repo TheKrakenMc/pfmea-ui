@@ -1,13 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye, Settings, ShieldCheck } from 'lucide-react';
-import type { ControlPlan } from '../../api/controlPlanService';
+import { controlPlanPhaseLabels, type ControlPlan } from '../../api/controlPlanService';
 import { formatDate } from '../../utils/dateUtils';
 
 interface ControlPlanTableProps {
   controlPlans: ControlPlan[];
   projectNameMap?: Record<number, { title: string; customer: string }>;
-  onSelect: (pfmeaId: number) => void;
+  onSelect: (pfmeaId: number, controlPlanId: number) => void;
   onSync?: (cpId: number) => void;
 }
 
@@ -55,7 +55,7 @@ export const ControlPlanTable: React.FC<ControlPlanTableProps> = ({
               <tr
                 key={cp.id}
                 className="hover:bg-steel-800/30 cursor-pointer transition-colors group"
-                onClick={() => onSelect(cp.pfmea_project_id)}
+                onClick={() => onSelect(cp.pfmea_project_id, cp.id)}
               >
                 <td className="px-6 py-4 text-steel-200 font-medium">
                   <div className="flex items-center gap-2">
@@ -65,6 +65,7 @@ export const ControlPlanTable: React.FC<ControlPlanTableProps> = ({
                 </td>
                 <td className="px-6 py-4 text-steel-300 font-mono text-xs">
                   {cp.control_plan_code}
+                  <span className="block text-steel-400">{cp.phase ? controlPlanPhaseLabels[cp.phase] : 'Fase histórica sin asignar'} · Rev. {cp.version}</span>
                 </td>
                 <td className="px-6 py-4 text-steel-300">
                   {projInfo?.customer || '-'}
@@ -85,7 +86,7 @@ export const ControlPlanTable: React.FC<ControlPlanTableProps> = ({
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => onSelect(cp.pfmea_project_id)}
+                      onClick={() => onSelect(cp.pfmea_project_id, cp.id)}
                       className="p-1.5 text-steel-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors focus-ring"
                       title={t('common.view', 'Ver / Editar')}
                     >

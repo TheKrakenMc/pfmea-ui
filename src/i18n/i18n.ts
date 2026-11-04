@@ -5,8 +5,12 @@
 // ─────────────────────────────────────────────────────────────
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { entryCopy } from './entry';
+import { workspaceCopy } from './workspace';
 const resources = {
     es: {
+        entry: entryCopy.es,
+        workspace: workspaceCopy.es,
         translation: {
             // ─── Common ─────────────────────────────────
             common: {
@@ -42,6 +46,15 @@ const resources = {
                 expand: 'Expandir',
                 revision: 'Revisión:'
             },
+            // ─── Local Draft Recovery ──────────────────
+            draft: {
+                bannerTitle: 'Borrador local disponible',
+                bannerSubtitle: 'Se encontraron modificaciones locales sin guardar en el servidor. Puedes recuperar tu trabajo pendiente o descartar el borrador.',
+                savedAt: 'Guardado localmente el: {{date}}',
+                restoreButton: 'Recuperar borrador',
+                discardButton: 'Descartar borrador',
+                discardConfirm: '¿Estás seguro de descartar este borrador local? Se perderán las modificaciones no guardadas.'
+            },
             // ─── Header Panel ──────────────────────────
             header: {
                 title: 'Cabecera de Proyecto y Proceso',
@@ -61,6 +74,16 @@ const resources = {
             // ─── Table Columns ─────────────────────────
             table: {
                 stepCountLabel: 'Paso(s) definidos',
+                movingWholeGroup: 'Moviendo grupo completo',
+                movingSubStep: 'Moviendo sub-operación secundaria',
+                singleOperation: 'Operación individual',
+                operationEmpty: 'Operación sin asignar',
+                expandSubSteps: 'Desplegar sub-operaciones',
+                collapseSubSteps: 'Colapsar sub-operaciones',
+                expandAll: 'Expandir sub-grupos',
+                collapseAll: 'Colapsar sub-grupos',
+                subStepLabel: 'Sub-op:',
+                subStepLinked: 'Paso vinculado',
                 stepCount: '{{count}} paso(s) definido(s)',
                 addStep: 'Agregar Paso',
                 emptyState: 'No hay pasos definidos. Agrega el primer paso del proceso.',
@@ -1742,6 +1765,8 @@ const resources = {
         }
     },
     en: {
+        entry: entryCopy.en,
+        workspace: workspaceCopy.en,
         translation: {
             // ─── Common ─────────────────────────────────
             common: {
@@ -1777,6 +1802,15 @@ const resources = {
                 expand: 'Expand',
                 revision: 'Revision:'
             },
+            // ─── Local Draft Recovery ──────────────────
+            draft: {
+                bannerTitle: 'Unsaved Local Draft Available',
+                bannerSubtitle: 'Local modifications not saved on the server were found. You can restore your pending work or discard the draft.',
+                savedAt: 'Saved locally on: {{date}}',
+                restoreButton: 'Restore draft',
+                discardButton: 'Discard draft',
+                discardConfirm: 'Are you sure you want to discard this local draft? Unsaved modifications will be lost.'
+            },
             // ─── Header Panel ──────────────────────────
             header: {
                 title: 'Project and Process Header',
@@ -1796,6 +1830,16 @@ const resources = {
             // ─── Table Columns ─────────────────────────
             table: {
                 stepCountLabel: 'step(s) defined',
+                movingWholeGroup: 'Moving entire group',
+                movingSubStep: 'Moving secondary sub-step',
+                singleOperation: 'Single operation',
+                operationEmpty: 'Unassigned operation',
+                expandSubSteps: 'Expand sub-steps',
+                collapseSubSteps: 'Collapse sub-steps',
+                expandAll: 'Expand sub-groups',
+                collapseAll: 'Collapse sub-groups',
+                subStepLabel: 'Sub-op:',
+                subStepLinked: 'Linked step',
                 stepCount: '{{count}} step(s) defined',
                 addStep: 'Add Step',
                 emptyState: 'No steps defined. Add the first process step.',

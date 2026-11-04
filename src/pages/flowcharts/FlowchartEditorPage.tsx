@@ -1,13 +1,14 @@
 import {listPlants} from '../../services/plantService';
 import {useAuth} from '../../hooks/useAuth';
 import { draftKey, loadDraft, discardDraft, type Draft } from '../../services/drafts';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FlowchartWorkspace } from '../../components/flowchart/FlowchartWorkspace';
 import { ArchivedBanner } from '../../components/flowchart/ArchivedBanner';
+import { DraftRecoveryBanner } from '../../components/flowchart/DraftRecoveryBanner';
 import { ObsoleteWatermark } from '../../components/flowchart/ObsoleteWatermark';
 import { DocumentHistoryDrawer } from '../../components/flowchart/DocumentHistoryDrawer';
 import { ExportFlowchartButton } from '../../components/flowcharts/ExportFlowchartButton';
@@ -23,6 +24,7 @@ export const FlowchartEditorPage: React.FC = () => {
   const { state, dispatch } = useFlowchart();
   const { user } = useAuth();
   const [pendingDraft, setPendingDraft] = useState<Draft<FlowchartState> | null>(null);
+  const serverLockVersionRef = useRef<number>(1);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export const FlowchartEditorPage: React.FC = () => {
 
         setTitle(data.title);
         setDocStatus(data.status || '');
+        serverLockVersionRef.current = data.lock_version;
 
         // Build a map of technology ID string -> name
         const techMap = new Map<string, string>();
@@ -163,17 +166,31 @@ export const FlowchartEditorPage: React.FC = () => {
   const isReadOnly=isArchived || docStatus?.toLowerCase()==='approved' || user?.role_name==='Viewer';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex flex-col min-h-screen bg-slate-50/50 dark:bg-steel-950"
-    >
-      {pendingDraft && user && id && <div className="p-4 bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100" role="status">
-        Existe un borrador local sin guardar en el servidor.
-        <button className="mx-3 underline" onClick={() => { dispatch({type:'LOAD_STATE',payload:pendingDraft.data}); dispatch({type:'MARK_DIRTY'}); setPendingDraft(null); }}>Recuperar borrador</button>
-        <button className="underline" onClick={() => { discardDraft(draftKey(user.id,user.plant_id,'flowchart',Number(id))); setPendingDraft(null); }}>Descartar borrador</button>
-      </div>}
+    <div className="flex flex-col min-h-full bg-slate-50/50 dark:bg-steel-950">
+      {/* Local Draft Recovery Banner */}
+      <AnimatePresence>
+        {pendingDraft && user && id && (
+          <DraftRecoveryBanner
+            savedAt={pendingDraft.savedAt}
+            onRestore={() => {
+              dispatch({
+                type: 'LOAD_STATE',
+                payload: {
+                  ...pendingDraft.data,
+                  flowchartId: Number(id),
+                  lockVersion: serverLockVersionRef.current || pendingDraft.data.lockVersion || state.lockVersion || 1,
+                },
+              });
+              dispatch({ type: 'MARK_DIRTY' });
+              setPendingDraft(null);
+            }}
+            onDiscard={() => {
+              discardDraft(draftKey(user.id, user.plant_id, 'flowchart', Number(id)));
+              setPendingDraft(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
       {/* Archived Document Banner */}
       {isArchived && (
         <ArchivedBanner
@@ -254,6 +271,6 @@ export const FlowchartEditorPage: React.FC = () => {
           </fieldset>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

@@ -172,4 +172,110 @@ describe('Flowchart Grouping & DnD Logic', () => {
 
     expect(invalidAfter).toHaveLength(0);
   });
+
+  it('correctly filters visible steps when master operations are collapsed', () => {
+    const steps: FlowchartStep[] = [
+      createMockStep('m1', 10, 0),
+      createMockStep('s1-1', 10, 1),
+      createMockStep('s1-2', 10, 2),
+      createMockStep('m2', 20, 0),
+      createMockStep('m3', 30, 0),
+      createMockStep('s3-1', 30, 1),
+      createMockStep('s3-2', 30, 2),
+      createMockStep('s3-3', 30, 3),
+    ];
+
+    const groups = groupStepsByMaster(steps);
+    expect(groups).toHaveLength(3);
+
+    // Helper to calculate visible steps given collapsed master IDs
+    const getVisible = (collapsed: Set<string>) => {
+      const visible: FlowchartStep[] = [];
+      for (const g of groups) {
+        visible.push(g.master);
+        if (!collapsed.has(g.master.id)) {
+          for (const sub of g.subSteps) {
+            visible.push(sub);
+          }
+        }
+      }
+      return visible;
+    };
+
+    // Initially all expanded
+    expect(getVisible(new Set())).toHaveLength(8);
+
+    // Collapse m1 (sequence 10)
+    const collapsedM1 = getVisible(new Set(['m1']));
+    expect(collapsedM1.map((s) => s.id)).toEqual(['m1', 'm2', 'm3', 's3-1', 's3-2', 's3-3']);
+
+    // Collapse both m1 and m3
+    const collapsedAll = getVisible(new Set(['m1', 'm3']));
+    expect(collapsedAll.map((s) => s.id)).toEqual(['m1', 'm2', 'm3']);
+
+    // Collapse only m3
+    const collapsedM3 = getVisible(new Set(['m3']));
+    expect(collapsedM3.map((s) => s.id)).toEqual(['m1', 's1-1', 's1-2', 'm2', 'm3']);
+  });
+
+  it('simulates master drag: auto-collapses sub-steps and moves the entire group to target position', () => {
+    const steps: FlowchartStep[] = [
+      createMockStep('m1', 10, 0, 'Die Cutting'),
+      createMockStep('s1-1', 10, 1, 'Die Cutting Sub 1'),
+      createMockStep('m2', 20, 0, 'Molding'),
+      createMockStep('m3', 30, 0, 'Foaming'),
+      createMockStep('s3-1', 30, 1, 'Foaming Sub 1'),
+      createMockStep('s3-2', 30, 2, 'Foaming Sub 2'),
+    ];
+
+    let collapsed = new Set<string>();
+
+    // When drag starts on m1, it has sub-steps so m1 is collapsed
+    const onDragStartMaster = (draggedId: string) => {
+      const dragged = steps.find((s) => s.id === draggedId);
+      if (dragged && (!dragged.subStep || dragged.subStep === 0)) {
+        const hasSubs = steps.some((s) => s.sequence === dragged.sequence && s.subStep > 0);
+        if (hasSubs) {
+          collapsed = new Set([...collapsed, dragged.id]);
+        }
+      }
+    };
+
+    onDragStartMaster('m1');
+    expect(collapsed.has('m1')).toBe(true);
+
+    // Visible steps while m1 is collapsed
+    const groups = groupStepsByMaster(steps);
+    const visibleSteps: FlowchartStep[] = [];
+    for (const g of groups) {
+      visibleSteps.push(g.master);
+      if (!collapsed.has(g.master.id)) {
+        for (const s of g.subSteps) {
+          visibleSteps.push(s);
+        }
+      }
+    }
+
+    // m1's sub-steps are collapsed out of visible steps, but m3's sub-steps remain
+    expect(visibleSteps.map((s) => s.id)).toEqual(['m1', 'm2', 'm3', 's3-1', 's3-2']);
+
+    // Now reorder m1 after m2
+    const sourceGroupIdx = groups.findIndex((g) => g.master.id === 'm1');
+    const destGroupIdx = groups.findIndex((g) => g.master.id === 'm2');
+    const reorderedGroups = Array.from(groups);
+    const [moved] = reorderedGroups.splice(sourceGroupIdx, 1);
+    reorderedGroups.splice(destGroupIdx, 0, moved);
+
+    const result = flattenMasterGroups(reorderedGroups);
+    // m2 is now 10, m1 and its sub-step s1-1 are now 20, m3 and its subs are 30
+    expect(result.map((s) => `${s.id}:${s.sequence}.${s.subStep}`)).toEqual([
+      'm2:10.0',
+      'm1:20.0',
+      's1-1:20.1',
+      'm3:30.0',
+      's3-1:30.1',
+      's3-2:30.2',
+    ]);
+  });
 });
+

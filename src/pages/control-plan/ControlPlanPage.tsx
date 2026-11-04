@@ -3,13 +3,13 @@ import {userService} from '../../api/userService';
 import {TraceabilityMatrix} from '../../components/control-plan/TraceabilityMatrix';
 import {listPlants} from '../../services/plantService';
 import {isAxiosError} from 'axios';
-import { ControlPlanItemEditor } from '../../components/control-plan/ControlPlanItemEditor';
+import { ControlPlanGrid } from '../../components/control-plan/ControlPlanGrid';
 import {useAuth} from '../../hooks/useAuth';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pfmeaService } from '../../api/pfmeaService';
-import { controlPlanService } from '../../api/controlPlanService';
+import { controlPlanService, controlPlanPhaseLabels, type ControlPlanPhase } from '../../api/controlPlanService';
 import { DataLayout } from '../../components/layout/DataLayout';
 import { ControlPlanCard } from '../../components/control-plan/ControlPlanCard';
 import { ControlPlanTable } from '../../components/control-plan/ControlPlanTable';
@@ -18,7 +18,7 @@ import { FilterBar } from '../../components/ui/FilterBar';
 import { MultiSelectFilter } from '../../components/ui/MultiSelectFilter';
 import { SortDropdown } from '../../components/ui/SortDropdown';
 import { toast } from 'sonner';
-import { Plus, Settings, CheckSquare, Users, ShieldCheck, ArrowLeft, X, AlertCircle, FileSignature, Loader2, ShieldAlert, GitBranch, Layers, Building2, FileText, Calendar } from 'lucide-react';
+import { Plus, Settings, Users, ShieldCheck, ArrowLeft, X, AlertCircle, FileSignature, Loader2, ShieldAlert, GitBranch, Layers, Building2, FileText, Calendar, Download, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -30,6 +30,25 @@ export const ControlPlanPage: React.FC = () => {
   const activePlant=plants.find(plant=>plant.id===user?.plant_id);
   const [exporting,setExporting]=useState(false);
   const [selectedPfmeaId, setSelectedPfmeaId] = useState<number | null>(null);
+  const [selectedControlPlanId, setSelectedControlPlanId] = useState<number | null>(null);
+  const [dirtyControlIds, setDirtyControlIds] = useState<Set<number>>(() => new Set());
+  const hasDirtyControls = dirtyControlIds.size > 0;
+  const handleDirtyChange = (id: number, dirty: boolean) => setDirtyControlIds(previous => {
+    const next = new Set(previous);
+    if (dirty) next.add(id); else next.delete(id);
+    return next;
+  });
+  const discardPendingChanges = () => {
+    if (hasDirtyControls && !window.confirm('Hay controles sin guardar. ¿Descartar los cambios y cambiar de vista?')) return false;
+    setDirtyControlIds(new Set());
+    return true;
+  };
+  useEffect(() => {
+    if (!hasDirtyControls) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasDirtyControls]);
 
   // Layout states
   const [search, rawSetSearch] = useState('');
@@ -44,9 +63,45 @@ export const ControlPlanPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
+  const handleExportPdf = async () => {
+    if (!cpDetail) return;
+    setExporting(true);
+    try {
+      const [{ generateControlPlanPdf }, saved, units, people] = await Promise.all([
+        import('../../services/controlPlanPdf'),
+        controlPlanService.getById(cpDetail.id),
+        getMeasurementUnits(),
+        userService.lookup(),
+      ]);
+      const blob = await generateControlPlanPdf(saved, {
+        plant: activePlant?.name || '',
+        customer: selectedProject?.customer || '',
+        part: selectedProject?.part_number || '',
+        responsible: Object.fromEntries(
+          people.map((person) => [Number(person.id), person.full_name || person.email || String(person.id)])
+        ),
+        units: Object.fromEntries(units.map((unit) => [unit.id, unit.symbology])),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${saved.control_plan_code}_Rev${saved.version}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success('PDF exportado exitosamente');
+    } catch {
+      toast.error('No se pudo exportar el plan guardado');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalSelectedPfmeaId, setModalSelectedPfmeaId] = useState<string>('');
+  const [modalPhase, setModalPhase] = useState<ControlPlanPhase>('Production');
   const [modalError, setModalError] = useState<string | null>(null);
 
   // Reset pagination on filter change
@@ -76,10 +131,16 @@ export const ControlPlanPage: React.FC = () => {
   }, [analyses]);
 
   const { data: cpDetail, isLoading: isLoadingCP, error:cpError } = useQuery({
-    queryKey: ['controlPlan', selectedPfmeaId],
-    queryFn: () => controlPlanService.getControlPlanByPfmea(selectedPfmeaId!),
+    queryKey: ['controlPlan', selectedPfmeaId, selectedControlPlanId],
+    queryFn: () => selectedControlPlanId ? controlPlanService.getById(selectedControlPlanId) : controlPlanService.getControlPlanByPfmea(selectedPfmeaId!),
     enabled: !!selectedPfmeaId,
     retry: false,
+  });
+
+  const {data: revisions = []} = useQuery({
+    queryKey: ['controlPlanRevisions', cpDetail?.id],
+    queryFn: () => controlPlanService.revisions(cpDetail!.id),
+    enabled: !!cpDetail,
   });
 
   const {data:sourcePfmea}=useQuery({queryKey:['pfmea',selectedPfmeaId],queryFn:()=>pfmeaService.getAnalysis(selectedPfmeaId!),enabled:!!selectedPfmeaId});
@@ -112,6 +173,7 @@ export const ControlPlanPage: React.FC = () => {
       controlPlanService.createControlPlan(pfmeaId, {
         title: 'Control Plan - ' + (analyses?.find((a) => a.id === pfmeaId)?.project_name || ''),
         status: 'Draft',
+        phase: modalPhase,
       }),
     onSuccess: (newCp) => {
       queryClient.invalidateQueries({ queryKey: ['controlPlan'] });
@@ -121,6 +183,7 @@ export const ControlPlanPage: React.FC = () => {
       setModalSelectedPfmeaId('');
       setModalError(null);
       setSelectedPfmeaId(newCp.pfmea_project_id);
+      setSelectedControlPlanId(newCp.id);
     },
     onError: () => toast.error(t('controlPlan.errors.createFailed', 'Error al crear el Plan de Control')),
   });
@@ -222,7 +285,7 @@ export const ControlPlanPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setSelectedPfmeaId(null)}
+                onClick={() => { if (discardPendingChanges()) { setSelectedPfmeaId(null); setSelectedControlPlanId(null); } }}
                 className="p-1.5 text-slate-500 dark:text-steel-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-steel-800 rounded-lg transition-colors group cursor-pointer"
                 title={t('controlPlan.backToInventory', 'Volver al inventario de Planes de Control')}
               >
@@ -299,15 +362,29 @@ export const ControlPlanPage: React.FC = () => {
             {/* Right: Actions & Status */}
             <div className="flex items-center gap-2.5">
               {cpDetail && (
-                <button
-                  type="button"
-                  style={{display:readOnly?'none':undefined}} onClick={() => syncCPMutation.mutate(cpDetail.id)}
-                  disabled={syncCPMutation.isPending || readOnly}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-600/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
-                >
-                  <Settings size={13} className={syncCPMutation.isPending ? 'animate-spin' : 'text-emerald-600 dark:text-emerald-400'} />
-                  <span>{t('controlPlan.syncButton', 'Sincronizar Críticos')}</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleExportPdf}
+                    disabled={exporting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-steel-850 border border-slate-200 dark:border-steel-700 text-slate-700 dark:text-steel-200 hover:bg-slate-50 dark:hover:bg-steel-800 transition-all shadow-2xs active:scale-[0.98] cursor-pointer"
+                    title={t('controlPlan.exportPdfTooltip', 'Exportar Plan de Control a PDF')}
+                  >
+                    <Download size={13} className={exporting ? 'animate-bounce text-blue-600' : 'text-blue-600 dark:text-blue-400'} />
+                    <span>{exporting ? 'Generando PDF…' : 'Exportar PDF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{display:readOnly?'none':undefined}}
+                    onClick={() => syncCPMutation.mutate(cpDetail.id)}
+                    disabled={syncCPMutation.isPending || readOnly || hasDirtyControls}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-600/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all shadow-2xs active:scale-[0.98] cursor-pointer"
+                  >
+                    <RefreshCw size={13} className={syncCPMutation.isPending ? 'animate-spin text-emerald-600' : 'text-emerald-600 dark:text-emerald-400'} />
+                    <span>{t('controlPlan.syncButton', 'Sincronizar Críticos')}</span>
+                  </button>
+                </>
               )}
 
               <span className="px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500 text-emerald-950 border-emerald-600 shadow-xs">
@@ -480,102 +557,129 @@ export const ControlPlanPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Items Matrix Table */}
-                <div className="bg-white dark:bg-steel-950/90 border border-slate-200 dark:border-steel-800 rounded-xl shadow-lg overflow-hidden backdrop-blur-md relative">
-                  <div className="flex items-center justify-between bg-slate-50 dark:bg-steel-900/90 border-b border-slate-200 dark:border-steel-800/80 px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <CheckSquare size={16} className="text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-sm font-bold text-slate-900 dark:text-white tracking-wide">
-                        {t('controlPlan.table.matrixTitle', 'Matriz de Control de Características Críticas')}
-                      </span>
-                      <span className="rounded-md bg-slate-200/80 dark:bg-steel-800/80 px-2.5 py-0.5 text-[11px] font-mono font-bold text-slate-700 dark:text-steel-300 border border-slate-300 dark:border-steel-700/60">
-                        {cpDetail.items?.length || 0} items
-                      </span>
-                    </div>
+                {/* Streamlined Document Management Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-steel-900/90 border border-slate-200 dark:border-steel-800 rounded-xl px-5 py-3 shadow-md">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                      Fase: {cpDetail.phase ? controlPlanPhaseLabels[cpDetail.phase] : 'Producción'}
+                    </span>
 
-                    <button
-                      type="button"
-                      onClick={() => syncCPMutation.mutate(cpDetail.id)}
-                      disabled={syncCPMutation.isPending}
-                      className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                    >
-                      <Settings size={14} className={syncCPMutation.isPending ? 'animate-spin' : ''} />
-                      <span>{t('controlPlan.syncButton', 'Sincronizar Críticos de PFMEA')}</span>
-                    </button>
+                    <div className="h-4 w-px bg-slate-200 dark:bg-steel-700" />
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-steel-300">
+                      <span>Revisión:</span>
+                      <select
+                        aria-label="Revisión documental"
+                        value={cpDetail.id}
+                        onChange={(event) => {
+                          if (discardPendingChanges()) setSelectedControlPlanId(Number(event.target.value));
+                        }}
+                        className="rounded-lg bg-slate-50 dark:bg-steel-950 border border-slate-200 dark:border-steel-700 py-1 px-2.5 text-xs font-mono font-bold text-slate-900 dark:text-steel-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+                      >
+                        {(revisions.length ? revisions : [cpDetail]).map((revision) => (
+                          <option key={revision.id} value={revision.id}>
+                            Rev. {revision.version} — {revision.status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {cpDetail.revision_reason && (
+                      <span className="text-xs text-slate-500 dark:text-steel-400 italic">
+                        ({cpDetail.revision_reason})
+                      </span>
+                    )}
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-steel-800 bg-slate-100/90 dark:bg-steel-900/80 text-left">
-                          <th className="w-16 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-steel-300">
-                            {t('controlPlan.table.seq', 'SEQ.')}
-                          </th>
-                          <th className="w-[280px] px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-steel-300">
-                            {t('controlPlan.table.criticalMode', 'PASO / MODO DE FALLA CRÍTICO (H / S≥9)')}
-                          </th>
-                          <th className="w-[220px] px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-steel-300">
-                            {t('controlPlan.table.characteristic', 'CARACTERÍSTICA (CC/SC)')}
-                          </th>
-                          <th className="w-[260px] px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-steel-300">
-                            {t('controlPlan.table.reactionPlan', 'MÉTODO / PLAN DE REACCIÓN')}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 dark:divide-steel-800/60">
-                        {cpDetail.items && cpDetail.items.length > 0 ? (
-                          cpDetail.items.map((item) => (
-                            <tr key={item.id} className="bg-white dark:bg-steel-900/40 hover:bg-slate-50 dark:hover:bg-steel-800/60 transition-colors">
-                              <td className="px-4 py-3 text-center">
-                                <span className="inline-flex h-7 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-steel-800/80 text-xs font-mono font-bold text-slate-700 dark:text-steel-300 border border-slate-200 dark:border-steel-700/60 shadow-2xs">
-                                  {item.item_sequence}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-xs font-bold text-slate-900 dark:text-steel-100">
-                                {item.item_name}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="block mb-1">{item.characteristic || 'Sin característica'}</span>
-                                <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-400 shadow-2xs">
-                                  <CheckSquare size={13} />
-                                  <span>{item.classification || 'Sin clasificación'}</span>
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-xs text-slate-500 dark:text-steel-400 italic">
-                                <span className="block">{item.measurement_method || 'Sin método de medición'}</span>
-                                <span>{item.reaction_plan || 'Sin plan de reacción'}</span>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="px-6 py-12 text-center text-xs text-slate-500 dark:text-steel-400">
-                              {t('controlPlan.table.noItems', 'No hay características críticas sincronizadas. Asegúrate de que en el PFMEA existan modos de falla con Prioridad "H" o Severidad ≥ 9.')}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                  <div className="flex items-center gap-2.5">
+                    {ownProject && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-steel-400">
+                          Estado:
+                        </span>
+                        <select
+                          aria-label="Estado del plan de control"
+                          disabled={hasDirtyControls}
+                          value={cpDetail.status}
+                          onChange={async (e) => {
+                            try {
+                              await controlPlanService.transition(cpDetail.id, e.target.value, cpDetail.lock_version);
+                              queryClient.invalidateQueries({ queryKey: ['controlPlan', selectedPfmeaId] });
+                              toast.success(`Estado actualizado a ${e.target.value}`);
+                            } catch {
+                              toast.error('Transición rechazada. Revisa los datos y permisos del plan.');
+                            }
+                          }}
+                          className="rounded-lg bg-slate-50 dark:bg-steel-950 border border-slate-200 dark:border-steel-700 py-1 px-2.5 text-xs font-bold text-slate-900 dark:text-steel-100 cursor-pointer"
+                        >
+                          <option value="Draft">Draft</option>
+                          <option value="In Review">In Review</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Archived">Archived</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {ownProject && ['Approved', 'Archived'].includes(cpDetail.status) && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const reason = window.prompt('Motivo de la nueva revisión (mínimo 5 caracteres):');
+                          if (!reason) return;
+                          try {
+                            const nextRevision = await controlPlanService.reopen(cpDetail.id, reason, cpDetail.lock_version);
+                            setSelectedControlPlanId(nextRevision.id);
+                            queryClient.invalidateQueries({ queryKey: ['controlPlanRevisions'] });
+                            queryClient.invalidateQueries({ queryKey: ['controlPlans'] });
+                            queryClient.invalidateQueries({ queryKey: ['controlPlan', selectedPfmeaId] });
+                            toast.success('Nueva revisión creada');
+                          } catch {
+                            toast.error('No se pudo reabrir el plan');
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                      >
+                        Crear revisión editable
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {cpDetail.needs_review && (
+                  <div role="status" className="p-3.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                    <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>La fuente PFMEA cambió; el plan conserva su historial pero requiere revisión de origen en los controles señalados.</span>
+                  </div>
+                )}
+
+                {/* Hero Editable Grid */}
+                <ControlPlanGrid
+                  plan={cpDetail}
+                  rows={sourcePfmea?.worksheet_rows || []}
+                  readOnly={readOnly}
+                  canReview={!!ownProject}
+                  onDirtyChange={handleDirtyChange}
+                  onSaved={() => {
+                    queryClient.invalidateQueries({ queryKey: ['controlPlan', selectedPfmeaId] });
+                  }}
+                />
+
+                {/* Digital Traceability Section */}
+                <TraceabilityMatrix
+                  plan={cpDetail}
+                  rows={sourcePfmea?.worksheet_rows || []}
+                />
               </div>
             )}
           </div>
         </div>
 
-        {cpDetail && <button disabled={exporting} className="mx-6 p-3 rounded-lg bg-blue-600 text-white disabled:opacity-50" onClick={async()=>{setExporting(true);try{const [{generateControlPlanPdf},saved,units,people]=await Promise.all([import('../../services/controlPlanPdf'),controlPlanService.getControlPlanByPfmea(cpDetail.pfmea_project_id),getMeasurementUnits(),userService.lookup()]);const blob=await generateControlPlanPdf(saved,{plant:activePlant?.name||'',customer:selectedProject?.customer||'',part:selectedProject?.part_number||'',responsible:Object.fromEntries(people.map(person=>[Number(person.id),person.full_name||person.email||String(person.id)])),units:Object.fromEntries(units.map(unit=>[unit.id,unit.symbology]))});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=saved.control_plan_code+'_Rev'+saved.version+'.pdf';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);}catch{toast.error('No se pudo exportar el plan guardado');}finally{setExporting(false);}}}>{exporting?'Generando PDF…':'Exportar plan guardado'}</button>}
-        {cpDetail && <TraceabilityMatrix plan={cpDetail} rows={sourcePfmea?.worksheet_rows || []}/>}
-        {cpDetail?.needs_review && <p role="status" className="mx-6 p-3 bg-amber-100 dark:bg-amber-950 rounded-lg">La fuente PFMEA cambió; el plan conserva su historial y requiere revisión.</p>}
-        {cpDetail && <div className="space-y-4 pb-24 mx-6">
-          {cpDetail.items.map(item => <ControlPlanItemEditor key={item.id + ':' + cpDetail.lock_version} item={item} version={cpDetail.lock_version}
-            readOnly={readOnly} canReview={!!ownProject} allowedResponsibleIds={[selectedProject?.owner_id || 0,...(selectedProject?.team_members?.map(m=>m.user_id) || [])]} onSaved={() => { queryClient.invalidateQueries({queryKey:['controlPlan',selectedPfmeaId]}); }} />)}
-          {ownProject && <select aria-label="Estado del plan de control" value={cpDetail.status} onChange={async e => {
-            try { await controlPlanService.transition(cpDetail.id,e.target.value,cpDetail.lock_version); queryClient.invalidateQueries({queryKey:['controlPlan',selectedPfmeaId]}); }
-            catch { toast.error('Transición rechazada. Revisa los datos y permisos del plan.'); }
-          }} className="rounded bg-steel-900 p-3"><option>Draft</option><option>In Review</option><option>Approved</option><option>Archived</option></select>}
-        </div>}
-        {cpDetail && ownProject && ['Approved','Archived'].includes(cpDetail.status) && <button onClick={async()=>{const reason=window.prompt('Motivo de reapertura (mínimo 5 caracteres)');if(!reason)return;try{await controlPlanService.reopen(cpDetail.id,reason,cpDetail.lock_version);queryClient.invalidateQueries({queryKey:['controlPlan',selectedPfmeaId]});}catch{toast.error('No se pudo reabrir el plan');}}} className="p-3 underline">Reabrir para revisión</button>}
-        {cpError && !isCPNotFound && <p role="alert">No se pudo cargar el plan. Comprueba tu conexión y permisos.</p>}
+        {cpError && !isCPNotFound && (
+          <p role="alert" className="p-4 text-center text-xs text-rose-500">
+            No se pudo cargar el plan. Comprueba tu conexión y permisos.
+          </p>
+        )}
+
         {/* Floating Action Buttons */}
         {cpDetail && (
           <motion.div
@@ -586,7 +690,7 @@ export const ControlPlanPage: React.FC = () => {
             <button
               type="button"
               onClick={() => syncCPMutation.mutate(cpDetail.id)}
-              disabled={syncCPMutation.isPending}
+              disabled={syncCPMutation.isPending || readOnly || hasDirtyControls}
               className="flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-600/25 transition-all cursor-pointer disabled:opacity-40"
             >
               <Settings size={18} className={syncCPMutation.isPending ? 'animate-spin' : ''} />
@@ -626,7 +730,7 @@ export const ControlPlanPage: React.FC = () => {
                   controlPlan={cp}
                   projectName={projInfo?.title}
                   customerName={projInfo?.customer}
-                  onSelect={(pfmeaId) => setSelectedPfmeaId(pfmeaId)}
+                  onSelect={(pfmeaId, planId) => { setSelectedPfmeaId(pfmeaId); setSelectedControlPlanId(planId); }}
                   onSync={(cpId) => syncCPMutation.mutate(cpId)}
                 />
               );
@@ -638,7 +742,7 @@ export const ControlPlanPage: React.FC = () => {
             <ControlPlanTable
               controlPlans={paginatedControlPlans}
               projectNameMap={projectNameMap}
-              onSelect={(pfmeaId) => setSelectedPfmeaId(pfmeaId)}
+              onSelect={(pfmeaId, planId) => { setSelectedPfmeaId(pfmeaId); setSelectedControlPlanId(planId); }}
               onSync={(cpId) => syncCPMutation.mutate(cpId)}
             />
           </div>
@@ -684,6 +788,13 @@ export const ControlPlanPage: React.FC = () => {
 
               {/* Modal Form */}
               <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+                <label className="block text-sm">Fase documental
+                  <select aria-label="Fase documental" value={modalPhase}
+                    onChange={event => setModalPhase(event.target.value as ControlPlanPhase)}
+                    className="block w-full rounded-lg bg-steel-950 border border-steel-700 p-2">
+                    {Object.entries(controlPlanPhaseLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
                 {modalError && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm flex items-start gap-2 animate-shake">
                     <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -693,7 +804,7 @@ export const ControlPlanPage: React.FC = () => {
 
                 {/* PFMEA Select */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-steel-300 uppercase tracking-wider block flex items-center gap-1">
+                  <label htmlFor="control-plan-pfmea" className="text-xs font-semibold text-steel-300 uppercase tracking-wider block flex items-center gap-1">
                     <ShieldCheck size={14} className="text-indigo-400" />
                     {t('controlPlan.modal.selectPfmea', 'Seleccionar PFMEA Liberado (Released)')} <span className="text-red-500">*</span>
                   </label>
@@ -705,6 +816,7 @@ export const ControlPlanPage: React.FC = () => {
                     </div>
                   ) : releasedAnalyses.length > 0 ? (
                     <select
+                      id="control-plan-pfmea"
                       required
                       value={modalSelectedPfmeaId}
                       onChange={(e) => setModalSelectedPfmeaId(e.target.value)}

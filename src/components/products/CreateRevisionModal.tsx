@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { createProductRevision } from '../../services/productService';
+import { backdropVariants, modalCardVariants } from '../../utils/motion';
 
 interface CreateRevisionModalProps {
   productId: number;
@@ -22,8 +25,6 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
   const [engineeringLevel, setEngineeringLevel] = useState(currentEngineeringLevel || '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,79 +50,115 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
-        <form onSubmit={handleSubmit}>
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-800">
-              {t('productVersioning.createRevisionTitle', 'Crear Nueva Revisión')}
-            </h3>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            variants={backdropVariants}
+            onClick={onClose}
+            className="absolute inset-0 bg-steel-950/70 backdrop-blur-sm"
+          />
 
-          {/* Content */}
-          <div className="p-6 space-y-4">
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
+          <motion.div
+            variants={modalCardVariants}
+            className="relative z-10 w-full max-w-md overflow-hidden flex flex-col bg-[var(--ui-surface)] text-[var(--ui-ink)] border border-[var(--ui-line)] rounded-[var(--ui-panel-radius)] shadow-[var(--ui-shadow-popover)]"
+          >
+            <form onSubmit={handleSubmit}>
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-[var(--ui-line)] flex items-center justify-between bg-[var(--ui-surface-subtle)]">
+                <div className="flex items-center gap-3">
+                  <div className="detail-spec-icon" style={{ width: 36, height: 36 }}>
+                    <FileText size={18} />
+                  </div>
+                  <h3 className="text-base font-semibold text-[var(--ui-ink)]">
+                    {t('productVersioning.createRevisionTitle', 'Crear Nueva Revisión')}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="ui-icon-button"
+                  aria-label={t('common.close', 'Cerrar')}
+                >
+                  <X size={18} />
+                </button>
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('productVersioning.changeReason', 'Motivo del Cambio')} <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={changeReason}
-                onChange={(e) => setChangeReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none h-24"
-                placeholder={t('productVersioning.changeReasonPlaceholder', 'Describe brevemente los cambios')}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('productVersioning.engineeringLevel', 'Nivel de Ingeniería')} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={engineeringLevel}
-                onChange={(e) => setEngineeringLevel(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                placeholder={t('productVersioning.engineeringLevelPlaceholder', 'Ej. Rev B')}
-                required
-              />
-            </div>
-          </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 transition-all disabled:opacity-50"
-            >
-              {t('common.cancel', 'Cancelar')}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition-all disabled:opacity-50"
-            >
-              {submitting ? t('common.saving', 'Guardando...') : t('productVersioning.createRevisionBtn', 'Crear Revisión')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {error && (
+                  <div className="detail-banner" data-tone="warning">
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="detail-field">
+                  <label htmlFor="change_reason" className="detail-label">
+                    {t('productVersioning.changeReason', 'Motivo del Cambio')}{' '}
+                    <span className="text-[var(--ui-danger)]">*</span>
+                  </label>
+                  <textarea
+                    id="change_reason"
+                    value={changeReason}
+                    onChange={e => setChangeReason(e.target.value)}
+                    className="ui-textarea resize-none"
+                    rows={3}
+                    placeholder={t(
+                      'productVersioning.changeReasonPlaceholder',
+                      'Describe brevemente los cambios',
+                    )}
+                    required
+                  />
+                </div>
+
+                <div className="detail-field">
+                  <label htmlFor="revision_eng_level" className="detail-label">
+                    {t('productVersioning.engineeringLevel', 'Nivel de Ingeniería')}{' '}
+                    <span className="text-[var(--ui-danger)]">*</span>
+                  </label>
+                  <input
+                    id="revision_eng_level"
+                    type="text"
+                    value={engineeringLevel}
+                    onChange={e => setEngineeringLevel(e.target.value)}
+                    className="ui-input ui-input-mono"
+                    placeholder={t('productVersioning.engineeringLevelPlaceholder', 'Ej. Rev B')}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-[var(--ui-line)] bg-[var(--ui-surface-subtle)] flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={submitting}
+                  className="ui-button"
+                >
+                  {t('common.cancel', 'Cancelar')}
+                </button>
+                <div className="workspace-primary">
+                  <button type="submit" disabled={submitting}>
+                    {submitting && <Loader2 size={15} className="animate-spin" />}
+                    <span>
+                      {submitting
+                        ? t('common.saving', 'Guardando...')
+                        : t('productVersioning.createRevisionBtn', 'Crear Revisión')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

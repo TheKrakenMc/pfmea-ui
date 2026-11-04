@@ -331,10 +331,15 @@ export const PFMEAWorksheetTable: React.FC<PFMEAWorksheetTableProps> = ({
   };
 
   const handleAddRowForOperation = (stationName: string, stepId?: number) => {
+    const masterStep = stepId ? flowchartSteps.find(s => s.id === stepId) : undefined;
+    const relatedStepIds = masterStep
+      ? new Set(flowchartSteps.filter(s => s.step_number === masterStep.step_number).map(s => s.id))
+      : new Set(stepId ? [stepId] : []);
+
     // Find index of last row belonging to this operation
     const lastOpRowIndex = localRows
       .map((r, i) => ({ r, i }))
-      .filter(({ r }) => (stepId && r.flowchart_step_id === stepId) || r.station_operation === stationName)
+      .filter(({ r }) => (r.flowchart_step_id && relatedStepIds.has(r.flowchart_step_id)) || r.station_operation === stationName)
       .pop()?.i;
 
     const newRow: WorksheetRow = {
@@ -371,6 +376,7 @@ export const PFMEAWorksheetTable: React.FC<PFMEAWorksheetTableProps> = ({
       nextRows = [...localRows, newRow];
     }
     setLocalRows(nextRows);
+    onRowsChange?.(nextRows);
   };
 
   // Local storage collapsed state per operation (default collapsed: true)
@@ -715,12 +721,16 @@ export const PFMEAWorksheetTable: React.FC<PFMEAWorksheetTableProps> = ({
                         </div>
                   <div className="px-3 py-2 border-r border-slate-200 dark:border-steel-800 bg-slate-50/60 dark:bg-steel-900/30 flex items-center">
                     {(() => {
-                      const matchedStep = row.flowchart_step_id
+                      const rawMatchedStep = row.flowchart_step_id
                         ? flowchartSteps.find(s => s.id === row.flowchart_step_id)
                         : flowchartSteps.find(s => `[OP ${s.step_number}] ${s.technology?.name || s.responsible_department || 'Assembly'}` === row.station_operation);
 
-                      const displayLabel = matchedStep
-                        ? `[OP ${matchedStep.step_number}] ${matchedStep.technology?.name || matchedStep.responsible_department || 'Assembly'}`
+                      const masterStep = rawMatchedStep
+                        ? flowchartSteps.find(s => s.step_number === rawMatchedStep.step_number && (!s.sub_step || s.sub_step === 0)) || rawMatchedStep
+                        : undefined;
+
+                      const displayLabel = masterStep
+                        ? `[OP ${masterStep.step_number}] ${masterStep.technology?.name || masterStep.custom_description || masterStep.responsible_department || 'Assembly'}`
                         : (row.station_operation || '-');
 
                       return (

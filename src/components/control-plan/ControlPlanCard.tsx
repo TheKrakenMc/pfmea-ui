@@ -2,14 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Settings, Hash, CheckSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { ControlPlan } from '../../api/controlPlanService';
+import { controlPlanPhaseLabels, type ControlPlan } from '../../api/controlPlanService';
 import { formatDate } from '../../utils/dateUtils';
 
 interface ControlPlanCardProps {
   controlPlan: ControlPlan;
   projectName?: string;
   customerName?: string;
-  onSelect: (pfmeaId: number) => void;
+  onSelect: (pfmeaId: number, controlPlanId: number) => void;
   onSync?: (cpId: number) => void;
 }
 
@@ -39,10 +39,11 @@ export const ControlPlanCard: React.FC<ControlPlanCardProps> = ({
   return (
     <motion.div
       whileHover={{ y: -4 }}
-      onClick={() => onSelect(controlPlan.pfmea_project_id)}
+      onClick={() => onSelect(controlPlan.pfmea_project_id, controlPlan.id)}
       className="glass-card p-5 transition-industrial flex flex-col h-full rounded-xl group relative hover:border-indigo-500/50 cursor-pointer"
     >
       {/* Header: Icon + Status + Sync */}
+      <p className="text-xs text-steel-400 mb-2">{controlPlan.phase ? controlPlanPhaseLabels[controlPlan.phase] : 'Fase histórica sin asignar'} · Rev. {controlPlan.version}</p>
       <div className="flex justify-between items-start mb-4">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-indigo-500/10 text-indigo-400">
           <ShieldCheck className="w-5 h-5" />

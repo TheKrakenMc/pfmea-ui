@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { backdropVariants, modalCardVariants } from '../../utils/motion';
 import {
   Archive,
   X,
@@ -58,27 +59,21 @@ export function ArchiveConfirmModal({
   return (
     <motion.div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
     >
       {/* Backdrop */}
       <motion.div
         className="absolute inset-0 bg-steel-900/70 backdrop-blur-md"
         onClick={onCancel}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        variants={backdropVariants}
       />
 
       {/* Modal Card */}
       <motion.div
         className="relative z-10 w-full max-w-lg bg-white dark:bg-steel-900 border border-amber-200 dark:border-amber-500/30 rounded-2xl shadow-2xl shadow-amber-900/20 overflow-hidden flex flex-col max-h-[90vh]"
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        variants={modalCardVariants}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-amber-200 dark:border-amber-500/20 flex items-center justify-between bg-amber-50/50 dark:bg-amber-500/5">

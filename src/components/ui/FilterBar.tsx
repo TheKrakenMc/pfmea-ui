@@ -1,30 +1,38 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { AnimatePresence, motion } from 'framer-motion';
+import { badgeVariants } from '../../utils/motion';
 
-interface FilterBarProps {
-  children: React.ReactNode;
+export function FilterBar({
+  children,
+  onReset,
+  hasActiveFilters,
+}: {
+  children: ReactNode;
   onReset?: () => void;
   hasActiveFilters?: boolean;
-}
-
-export const FilterBar: React.FC<FilterBarProps> = ({ children, onReset, hasActiveFilters }) => {
-  const { t } = useTranslation();
-
+}) {
+  const { t } = useTranslation('workspace');
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="workspace-filter-bar">
       {children}
-
-      {onReset && hasActiveFilters && (
-        <button
-          onClick={onReset}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-steel-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-          title={t('common.resetFilters', 'Resetear Filtros')}
-        >
-          <RotateCcw size={14} />
-          {t('common.reset', 'Resetear')}
-        </button>
-      )}
+      <AnimatePresence>
+        {onReset && hasActiveFilters && (
+          <motion.button
+            type="button"
+            className="ui-button ui-button-quiet"
+            onClick={onReset}
+            variants={badgeVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <RotateCcw size={15} />
+            <span>{t('reset')}</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
+}

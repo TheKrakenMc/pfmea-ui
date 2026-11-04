@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { WorksheetRow } from '../api/pfmeaService';
 import type { FlowchartStepRead } from '../services/flowchartService';
+import { groupFlowchartStepsByMaster } from '../utils/pfmeaRowSync';
 
 export interface RowValidationResult {
   rowId: number;
@@ -240,27 +241,36 @@ export function usePFMEAValidation(
   layout: PFMEALayoutType = 'AIAG_APG'
 ): GlobalValidationResult {
   return useMemo(() => {
-    // Sort flowchart steps by step_number ascending
-    const sortedSteps = [...flowchartSteps].sort((a, b) => (a.step_number || 0) - (b.step_number || 0));
+    // Group flowchart steps into master operations (sub_step === 0) and sub-operations (sub_step > 0)
+    const masterGroups = groupFlowchartStepsByMaster(flowchartSteps);
 
-    // Map each step to an operation result
+    // Map each master operation to an operation result
     const operations: OperationValidationResult[] = [];
     const processedRowIds = new Set<number>();
 
-    // 1. Process DF steps first
-    sortedSteps.forEach((step) => {
-      const stepNumber = step.step_number;
-      const opTitle = `[OP ${stepNumber}] ${step.technology?.name || step.custom_description || step.responsible_department || 'Operación'}`;
+    // 1. Process DF master groups first
+    masterGroups.forEach((group) => {
+      const { stepNumber, master: step, opTitle, opName, allStepIds, requiresScCc } = group;
       const opKey = `step-${step.id}-${stepNumber}`;
 
-      // Find matching rows
+      // Find matching rows belonging to the master operation or any of its sub-operations
       const matchingRows = rows.filter((r) => {
-        if (r.flowchart_step_id === step.id) return true;
+        if (processedRowIds.has(r.id)) return false;
+        if (r.flowchart_step_id && allStepIds.has(r.flowchart_step_id)) return true;
         if (r.station_operation) {
           const norm = r.station_operation.trim().toLowerCase();
           const targetPrefix = `[op ${stepNumber}]`.toLowerCase();
-          const techName = (step.technology?.name || '').trim().toLowerCase();
-          return norm.startsWith(targetPrefix) || norm === opTitle.toLowerCase() || (techName && norm === techName);
+          const subPrefix = `[op ${stepNumber}.`.toLowerCase();
+          const stepPrefix = `step ${stepNumber}`;
+          const techName = opName.toLowerCase();
+          return (
+            norm.startsWith(targetPrefix) ||
+            norm.startsWith(subPrefix) ||
+            norm.includes(`- ${stepPrefix}`) ||
+            norm.startsWith(stepPrefix) ||
+            norm === opTitle.toLowerCase() ||
+            (techName && norm === techName)
+          );
         }
         return false;
       });
@@ -278,8 +288,6 @@ export function usePFMEAValidation(
         ? Math.round((totalFilledFields / totalRequiredFields) * 100)
         : 0;
 
-      // SC/CC is only required if the operation was marked as critical (SC or CC) in the Flowchart
-      const requiresScCc = step.critical_flag === 'SC' || step.critical_flag === 'CC';
       const hasRowScCc = rowValidations.some((v) => v.hasScCc);
       // Operation has SC/CC identified if at least one row in the PFMEA has an SC/CC assigned
       const hasScCc = hasRowScCc;

@@ -15,6 +15,7 @@ import {
   Copy,
   Trash2,
   CornerDownRight,
+  ChevronDown,
 } from 'lucide-react';
 import { useFlowchart } from '../../hooks/useFlowchart';
 import { OperationSelect } from './OperationSelect';
@@ -31,6 +32,9 @@ interface FlowchartRowProps {
   index: number;
   tableWidth?: number;
   activeDraggingStepId?: string | null;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (masterId: string) => void;
+  onAddSubStep?: (masterId: string) => void;
 }
 
 // ─── Symbol Icon Map ─────────────────────────────────────────
@@ -58,8 +62,10 @@ const SYMBOL_OPTIONS: SymbolType[] = [
 export function FlowchartRow({
   step,
   index,
-  tableWidth,
   activeDraggingStepId,
+  isCollapsed = false,
+  onToggleCollapse,
+  onAddSubStep,
 }: FlowchartRowProps) {
   const { t } = useTranslation();
   const { state, updateStep, duplicateStep, deleteStep, addSubStep } = useFlowchart();
@@ -138,9 +144,11 @@ export function FlowchartRow({
   // Check if this sub-step is the last sub-step of its master group
   const isLastSubStep = useMemo(() => {
     if (!isSubStep) return false;
-    const nextStep = state.steps[index + 1];
-    return !nextStep || !nextStep.subStep || nextStep.subStep === 0;
-  }, [state.steps, index, isSubStep]);
+    const stepIdxInState = state.steps.findIndex((s) => s.id === step.id);
+    if (stepIdxInState === -1) return false;
+    const nextStep = state.steps[stepIdxInState + 1];
+    return !nextStep || !nextStep.subStep || nextStep.subStep === 0 || nextStep.sequence !== step.sequence;
+  }, [state.steps, step.id, step.sequence, isSubStep]);
 
   const disabledOperationIds = useMemo(() => {
     return state.steps.filter((s) => s.id !== step.id).map((s) => s.operationId).filter(Boolean);
@@ -181,14 +189,22 @@ export function FlowchartRow({
             <tr
               ref={provided.innerRef}
               {...provided.draggableProps}
-              className={`group border-b border-slate-200 dark:border-steel-800/60 transition-colors ${
+              className={`group transition-all ${
+                isLastSubStep
+                  ? 'border-b-2 border-b-slate-300 dark:border-b-steel-700/80'
+                  : 'border-b border-slate-200 dark:border-steel-800/60'
+              } ${
                 snapshot.isDragging
                   ? 'bg-blue-50 dark:bg-steel-800/95 shadow-2xl ring-2 ring-blue-500/50'
                   : isChildOfDraggingMaster
-                  ? 'bg-blue-50/70 dark:bg-steel-800/60 border-l-4 border-l-blue-400'
+                  ? 'bg-blue-50/70 dark:bg-steel-800/60 border-l-[5px] border-l-blue-400'
                   : isSubStep
-                  ? 'bg-slate-100/90 dark:bg-steel-950/80 hover:bg-slate-200/70 dark:hover:bg-steel-900 border-l-4 border-l-indigo-400 dark:border-l-indigo-500 shadow-2xs'
-                  : 'bg-white dark:bg-steel-900/40 hover:bg-slate-50 dark:hover:bg-steel-800/60 border-l-4 border-l-transparent'
+                  ? 'bg-slate-50/70 dark:bg-steel-950/90 hover:bg-slate-100/90 dark:hover:bg-steel-900/90 border-l-[5px] border-l-indigo-400 dark:border-l-indigo-500'
+                  : isMasterWithSubSteps
+                  ? isCollapsed
+                    ? 'bg-slate-50/50 dark:bg-steel-900/50 hover:bg-slate-100/70 dark:hover:bg-steel-800/70 border-l-[5px] border-l-indigo-500 dark:border-l-indigo-500'
+                    : 'bg-white dark:bg-steel-900/60 hover:bg-slate-50/80 dark:hover:bg-steel-800/60 border-l-[5px] border-l-blue-600 dark:border-l-blue-500'
+                  : 'bg-white dark:bg-steel-900/40 hover:bg-slate-50 dark:hover:bg-steel-800/60 border-l-[5px] border-l-transparent'
               } ${isDimmed ? 'opacity-35 pointer-events-none transition-opacity' : 'opacity-100'}`}
               style={{
                 ...provided.draggableProps.style,
@@ -199,18 +215,33 @@ export function FlowchartRow({
               <td
                 className={`${
                   snapshot.isDragging ? 'relative' : 'sticky left-0 z-10'
-                } w-[44px] min-w-[44px] max-w-[44px] px-2 py-3 text-center align-top transition-colors ${
-                  snapshot.isDragging
-                    ? 'bg-blue-50 dark:bg-steel-800'
-                    : isChildOfDraggingMaster
-                    ? 'bg-blue-50 dark:bg-steel-800'
+                } w-[44px] min-w-[44px] max-w-[44px] px-2 py-3 text-center align-top border-r border-slate-200/80 dark:border-steel-800 transition-colors ${
+                  snapshot.isDragging || isChildOfDraggingMaster
+                    ? 'bg-blue-100 dark:bg-steel-800'
                     : isSubStep
-                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200/80 dark:group-hover:bg-steel-900'
-                    : 'bg-white dark:bg-steel-900 group-hover:bg-slate-50 dark:group-hover:bg-steel-800'
+                    ? 'bg-slate-200 dark:bg-steel-950 group-hover:bg-slate-300 dark:group-hover:bg-steel-900'
+                    : isMasterWithSubSteps && isCollapsed
+                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
+                    : 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
                 }`}
               >
                 <div
                   {...provided.dragHandleProps}
+                  onPointerDown={() => {
+                    if (isMasterWithSubSteps && !isCollapsed) {
+                      onToggleCollapse?.(step.id);
+                    }
+                  }}
+                  onMouseDown={() => {
+                    if (isMasterWithSubSteps && !isCollapsed) {
+                      onToggleCollapse?.(step.id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (isMasterWithSubSteps && !isCollapsed && (e.key === ' ' || e.key === 'Enter')) {
+                      onToggleCollapse?.(step.id);
+                    }
+                  }}
                   className={`drag-handle inline-flex items-center justify-center rounded-lg p-1 text-slate-400 dark:text-steel-400 hover:bg-slate-100 dark:hover:bg-steel-700 hover:text-slate-800 dark:hover:text-steel-200 transition-colors ${
                     snapshot.isDragging ? 'cursor-grabbing text-blue-600 dark:text-blue-400' : 'cursor-grab'
                   } mt-1`}
@@ -224,14 +255,14 @@ export function FlowchartRow({
               <td
                 className={`${
                   snapshot.isDragging ? 'relative' : 'sticky left-[44px] z-10'
-                } w-[76px] min-w-[76px] max-w-[76px] px-1 py-3 text-center align-top transition-colors ${
-                  snapshot.isDragging
-                    ? 'bg-blue-50 dark:bg-steel-800'
-                    : isChildOfDraggingMaster
-                    ? 'bg-blue-50 dark:bg-steel-800'
+                } w-[76px] min-w-[76px] max-w-[76px] px-1 py-3 text-center align-top border-r border-slate-200/80 dark:border-steel-800 transition-colors ${
+                  snapshot.isDragging || isChildOfDraggingMaster
+                    ? 'bg-blue-100 dark:bg-steel-800'
                     : isSubStep
-                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200/80 dark:group-hover:bg-steel-900'
-                    : 'bg-white dark:bg-steel-900 group-hover:bg-slate-50 dark:group-hover:bg-steel-800'
+                    ? 'bg-slate-200 dark:bg-steel-950 group-hover:bg-slate-300 dark:group-hover:bg-steel-900'
+                    : isMasterWithSubSteps && isCollapsed
+                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
+                    : 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
                 }`}
               >
                 {isSubStep ? (
@@ -239,25 +270,53 @@ export function FlowchartRow({
                     {/* Tree connector branch */}
                     <div className="relative w-3.5 h-7 flex-shrink-0 flex items-center justify-center mr-1">
                       {/* Vertical line from top to center */}
-                      <div className="absolute top-0 left-1.5 w-[2px] h-3.5 bg-indigo-400 dark:bg-indigo-500" />
+                      <div className="absolute top-0 left-1.5 w-[2px] h-3.5 bg-indigo-500 dark:bg-indigo-400" />
                       {/* Vertical line from center to bottom if not last */}
                       {!isLastSubStep && (
-                        <div className="absolute top-3.5 left-1.5 w-[2px] h-3.5 bg-indigo-400 dark:bg-indigo-500" />
+                        <div className="absolute top-3.5 left-1.5 w-[2px] h-3.5 bg-indigo-500 dark:bg-indigo-400" />
                       )}
                       {/* Horizontal line to the badge */}
-                      <div className="absolute top-3.5 left-1.5 w-2 h-[2px] bg-indigo-400 dark:bg-indigo-500" />
+                      <div className="absolute top-3.5 left-1.5 w-2 h-[2px] bg-indigo-500 dark:bg-indigo-400" />
                     </div>
 
                     {/* Indented Sequence Badge */}
-                    <span className="inline-flex h-7 px-2 items-center justify-center rounded-lg bg-indigo-100/90 dark:bg-indigo-950/90 text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 shadow-2xs">
+                    <span className="inline-flex h-7 px-2 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs">
                       {step.sequence}.{step.subStep}
                     </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
-                    <span className="inline-flex h-7 w-12 items-center justify-center rounded-lg bg-slate-100 dark:bg-steel-800/80 text-xs font-mono font-bold text-slate-700 dark:text-steel-300 border border-slate-200 dark:border-steel-700/60 shadow-2xs mt-1">
-                      {step.sequence}
-                    </span>
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      {isMasterWithSubSteps && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleCollapse?.(step.id);
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:text-steel-400 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-steel-800 transition-colors cursor-pointer"
+                          title={
+                            isCollapsed
+                              ? t('table.expandSubSteps', 'Desplegar sub-operaciones')
+                              : t('table.collapseSubSteps', 'Colapsar sub-operaciones')
+                          }
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 ${
+                              isCollapsed ? '-rotate-90 text-indigo-500 dark:text-indigo-400' : 'text-blue-600 dark:text-sky-400'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <span
+                        className={`inline-flex h-7 ${
+                          isMasterWithSubSteps ? 'w-10' : 'w-12'
+                        } items-center justify-center rounded-lg bg-slate-100 dark:bg-steel-800/80 text-xs font-mono font-bold text-slate-700 dark:text-steel-200 border border-slate-200 dark:border-steel-700/60 shadow-2xs`}
+                      >
+                        {step.sequence}
+                      </span>
+                    </div>
                     {snapshot.isDragging && !isSubStep && subStepsCount > 0 && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100/90 dark:bg-blue-900/60 rounded border border-blue-300 dark:border-blue-700/60 mt-1 shadow-xs whitespace-nowrap">
                         +{subStepsCount} sub-pasos
@@ -271,32 +330,71 @@ export function FlowchartRow({
               <td
                 className={`${
                   snapshot.isDragging ? 'relative' : 'sticky left-[120px] z-10'
-                } w-[220px] min-w-[220px] max-w-[220px] px-2 py-3 align-top border-r border-slate-200 dark:border-steel-800 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.06)] transition-colors ${
-                  snapshot.isDragging
-                    ? 'bg-blue-50 dark:bg-steel-800'
-                    : isChildOfDraggingMaster
-                    ? 'bg-blue-50 dark:bg-steel-800'
+                } w-[220px] min-w-[220px] max-w-[220px] px-2 py-3 align-top border-r border-slate-300 dark:border-steel-700 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors ${
+                  snapshot.isDragging || isChildOfDraggingMaster
+                    ? 'bg-blue-100 dark:bg-steel-800'
                     : isSubStep
-                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200/80 dark:group-hover:bg-steel-900'
-                    : 'bg-white dark:bg-steel-900 group-hover:bg-slate-50 dark:group-hover:bg-steel-800'
+                    ? 'bg-slate-200 dark:bg-steel-950 group-hover:bg-slate-300 dark:group-hover:bg-steel-900'
+                    : isMasterWithSubSteps && isCollapsed
+                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
+                    : 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
                 }`}
               >
                 {isSubStep ? (
-                  <div className="h-9 flex items-center pl-2.5 pr-2 rounded-lg bg-white/90 dark:bg-steel-900/90 border border-indigo-200/90 dark:border-indigo-800/70 text-xs text-slate-700 dark:text-steel-200 font-medium mt-0.5 select-none shadow-2xs gap-1.5 truncate">
+                  <div className="h-9 flex items-center pl-2.5 pr-2 rounded-lg bg-indigo-50/50 dark:bg-steel-900/90 border border-indigo-200/80 dark:border-indigo-800/70 text-xs text-slate-700 dark:text-steel-200 font-medium mt-0.5 select-none shadow-2xs gap-1.5 truncate">
                     <span className="text-indigo-500 dark:text-indigo-400 font-mono text-[11px] font-bold shrink-0 select-none">
                       └──
+                    </span>
+                    <span className="text-slate-400 dark:text-steel-400 font-medium text-[11px] shrink-0">
+                      {t('table.subStepLabel', 'Sub-op:')}
                     </span>
                     <span className="italic truncate text-slate-700 dark:text-steel-200 font-medium">
                       {step.operationName || t('table.subStepLinked', 'Paso vinculado')}
                     </span>
                   </div>
                 ) : (
-                  <OperationSelect
-                    value={step.operationId}
-                    displayValue={step.operationName}
-                    onChange={handleOperationChange}
-                    disabledIds={disabledOperationIds}
-                  />
+                  <div>
+                    <OperationSelect
+                      value={step.operationId}
+                      displayValue={step.operationName}
+                      onChange={handleOperationChange}
+                      disabledIds={disabledOperationIds}
+                    />
+                    {isMasterWithSubSteps && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleCollapse?.(step.id)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer mt-1.5 shadow-2xs ${
+                          isCollapsed
+                            ? 'bg-indigo-50 hover:bg-indigo-100/90 text-indigo-700 dark:bg-indigo-950/70 dark:hover:bg-indigo-900/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/70'
+                            : 'bg-slate-100/80 hover:bg-slate-200/80 text-slate-600 dark:bg-steel-800/80 dark:hover:bg-steel-700 dark:text-steel-300 border border-slate-200/90 dark:border-steel-700/60'
+                        }`}
+                        title={
+                          isCollapsed
+                            ? t('table.expandSubSteps', 'Desplegar sub-operaciones')
+                            : t('table.collapseSubSteps', 'Colapsar sub-operaciones')
+                        }
+                      >
+                        <ChevronDown
+                          size={12}
+                          className={`transition-transform duration-200 shrink-0 ${
+                            isCollapsed ? '-rotate-90 text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-steel-400'
+                          }`}
+                        />
+                        <span>
+                          {subStepsCount}{' '}
+                          {subStepsCount === 1
+                            ? t('table.subStepOne', 'sub-operación')
+                            : t('table.subStepPlural', 'sub-operaciones')}
+                        </span>
+                        {isCollapsed && (
+                          <span className="rounded bg-indigo-200/70 dark:bg-indigo-900/80 px-1 py-0.2 text-[9px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wider">
+                            {t('table.collapsedTag', 'Ocultas')}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 )}
               </td>
 
@@ -453,22 +551,30 @@ export function FlowchartRow({
               <td
                 className={`${
                   snapshot.isDragging ? 'relative' : 'sticky right-0 z-10'
-                } w-28 px-2 py-3 align-top border-l border-slate-200 dark:border-steel-800 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] transition-colors ${
-                  snapshot.isDragging
-                    ? 'bg-blue-50 dark:bg-steel-800'
+                } w-28 px-2 py-3 align-top border-l border-slate-300 dark:border-steel-700 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors ${
+                  snapshot.isDragging || isChildOfDraggingMaster
+                    ? 'bg-blue-100 dark:bg-steel-800'
                     : isSubStep
-                    ? 'bg-slate-50 dark:bg-steel-950 group-hover:bg-slate-100 dark:group-hover:bg-steel-900'
-                    : 'bg-white dark:bg-steel-900 group-hover:bg-slate-50 dark:group-hover:bg-steel-800'
+                    ? 'bg-slate-200 dark:bg-steel-950 group-hover:bg-slate-300 dark:group-hover:bg-steel-900'
+                    : isMasterWithSubSteps && isCollapsed
+                    ? 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
+                    : 'bg-slate-100 dark:bg-steel-950 group-hover:bg-slate-200 dark:group-hover:bg-steel-900'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1.5 opacity-100 mt-1">
                   {!isSubStep && (
                     <motion.button
                       type="button"
-                      onClick={() => addSubStep(step.id)}
+                      onClick={() => {
+                        if (onAddSubStep) {
+                          onAddSubStep(step.id);
+                        } else {
+                          addSubStep(step.id);
+                        }
+                      }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="rounded-lg p-1.5 text-slate-500 dark:text-steel-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer"
+                      className="rounded-lg p-1.5 text-slate-500 dark:text-steel-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
                       title={t('actions.addSubStep', 'Añadir sub-paso (ej. 10.1)')}
                     >
                       <CornerDownRight size={15} />
@@ -480,7 +586,7 @@ export function FlowchartRow({
                       onClick={() => duplicateStep(step.id)}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="rounded-lg p-1.5 text-slate-400 dark:text-steel-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors cursor-pointer"
+                      className="rounded-lg p-1.5 text-slate-400 dark:text-steel-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950 transition-colors cursor-pointer"
                       title={t('actions.duplicate', 'Duplicar paso')}
                     >
                       <Copy size={15} />
@@ -491,7 +597,7 @@ export function FlowchartRow({
                     onClick={() => setShowDeleteModal(true)}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    className="rounded-lg p-1.5 text-slate-400 dark:text-steel-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors cursor-pointer"
+                    className="rounded-lg p-1.5 text-slate-400 dark:text-steel-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-950 transition-colors cursor-pointer"
                     title={isSubStep ? t('actions.deleteSubStep', 'Eliminar sub-paso') : t('actions.delete', 'Eliminar paso')}
                   >
                     <Trash2 size={15} />
@@ -503,16 +609,65 @@ export function FlowchartRow({
 
           if (snapshot.isDragging) {
             return createPortal(
-              <table
-                className="border-collapse bg-white dark:bg-steel-900 shadow-2xl rounded-xl ring-2 ring-blue-500/50 overflow-hidden pointer-events-none z-99999"
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
                 style={{
                   ...provided.draggableProps.style,
-                  width: tableWidth || 1200,
-                  tableLayout: 'fixed',
+                  zIndex: 99999,
                 }}
+                className="fixed pointer-events-none select-none flex items-center justify-between gap-4 px-4 py-3 rounded-2xl bg-white/95 dark:bg-steel-900/95 border-2 border-blue-500 shadow-2xl ring-4 ring-blue-500/20 backdrop-blur-md min-w-[380px] max-w-[560px]"
               >
-                <tbody>{child}</tbody>
-              </table>,
+                {/* Drag Grip + Sequence Badge */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 shadow-xs">
+                    <GripVertical size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-steel-800 text-slate-800 dark:text-steel-100 border border-slate-300 dark:border-steel-700 shadow-2xs">
+                        {isSubStep ? `${step.sequence}.${step.subStep}` : `SEC ${step.sequence}`}
+                      </span>
+                      {step.criticalFlag && step.criticalFlag !== 'none' && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                          {step.criticalFlag}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operation Title & Group Status */}
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {step.operationName || t('table.operationEmpty', 'Operación sin asignar')}
+                  </p>
+                  {isMasterWithSubSteps ? (
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                      <span className="font-mono">└──</span>
+                      <span>
+                        {t('table.movingWholeGroup', 'Moviendo grupo completo')} ({subStepsCount}{' '}
+                        {subStepsCount === 1 ? 'sub-operación vinculada' : 'sub-operaciones vinculadas'})
+                      </span>
+                    </div>
+                  ) : isSubStep ? (
+                    <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                      {t('table.movingSubStep', 'Moviendo sub-operación secundaria')}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 dark:text-steel-400 font-medium truncate block">
+                      {step.responsibleDepartment || t('table.singleOperation', 'Operación individual')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Sub-steps count badge */}
+                {isMasterWithSubSteps && (
+                  <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700/60 shadow-xs text-xs font-bold">
+                    <span>+{subStepsCount} sub-op</span>
+                  </div>
+                )}
+              </div>,
               document.body
             );
           }

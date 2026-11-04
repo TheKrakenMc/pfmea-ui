@@ -2,7 +2,7 @@ import type { PfmeaHeader, WorksheetRow } from '../../api/pfmeaService';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Layers, FileSpreadsheet, Sparkles, FileDown, Loader2, ArrowLeft } from 'lucide-react';
+import { Layers, FileSpreadsheet, Sparkles, FileDown, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
 import { ExportPfmeaButton } from './ExportPfmeaButton';
 
 export type FmeaLayoutType = 'AIAG_VDA' | 'AIAG_APG';
@@ -14,6 +14,8 @@ interface FormatSelectorToolbarProps {
   pfmeaId?: number;
   onExportPdf?: (layout: FmeaLayoutType) => void;
   isExporting?: boolean;
+  onSyncFlowchart?: () => void;
+  isSyncing?: boolean;
   docId?: string;
   projectName?: string;
   isReadOnly?: boolean;
@@ -30,6 +32,8 @@ export const FormatSelectorToolbar: React.FC<FormatSelectorToolbarProps> = ({
   onChangeLayout,
   onExportPdf,
   isExporting = false,
+  onSyncFlowchart,
+  isSyncing = false,
   docId,
   projectName,
   isReadOnly = false,
@@ -126,8 +130,24 @@ export const FormatSelectorToolbar: React.FC<FormatSelectorToolbarProps> = ({
         </button>
       </div>
 
-      {/* Right: PDF Export Action & Status Badges */}
+      {/* Right: Sync, PDF Export Action & Status Badges */}
       <div className="flex items-center gap-2.5">
+        {!isReadOnly && onSyncFlowchart && (
+          <button
+            type="button"
+            onClick={onSyncFlowchart}
+            disabled={isSyncing}
+            title={t(
+              'pfmea.editor.syncFlowchartTooltip',
+              'Sincronizar operaciones maestras y convertir sub-operaciones del diagrama de flujo en filas del PFMEA'
+            )}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-steel-800 text-slate-800 dark:text-steel-100 hover:bg-slate-200 dark:hover:bg-steel-700 border border-slate-200 dark:border-steel-700/60 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={13} className={isSyncing ? 'animate-spin text-blue-500' : 'text-blue-600 dark:text-blue-400'} />
+            <span>{t('pfmea.editor.syncFlowchart', 'Sincronizar Diagrama')}</span>
+          </button>
+        )}
+
         {exportButton ? (
           exportButton
         ) : header && rows ? (

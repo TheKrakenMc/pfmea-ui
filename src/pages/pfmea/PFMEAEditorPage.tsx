@@ -16,6 +16,7 @@ import { CorporateWorksheetTable } from '../../components/pfmea/CorporateWorkshe
 import { FormatSelectorToolbar, type FmeaLayoutType } from '../../components/pfmea/FormatSelectorToolbar';
 import { MOCView } from '../../components/pfmea/MOCView';
 import { MyTasksTray } from '../../components/pfmea/MyTasksTray';
+import { syncRowsFromFlowchartSteps } from '../../utils/pfmeaRowSync';
 import { toast } from 'sonner';
 
 const normalizeVal = (val: unknown) => (val === undefined || val === null ? '' : String(val).trim());
@@ -99,8 +100,6 @@ export const PFMEAEditorPage: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
-  const localRows = React.useMemo(() => editedRows ?? pfmeaDetail?.worksheet_rows ?? [], [editedRows,pfmeaDetail?.worksheet_rows]);
-
   const { data: flowchartDetail } = useQuery({
     queryKey: ['flowchart', pfmeaDetail?.flowchart_id],
     queryFn: () => getFlowchartById(pfmeaDetail!.flowchart_id!),
@@ -128,16 +127,32 @@ export const PFMEAEditorPage: React.FC = () => {
 
   const canManage=user?.role_name==='Administrator' || user?.role_name==='PFMEA Owner' && (pfmeaDetail?.owner_id===Number(user.id) || !!pfmeaDetail?.team_members.some(m=>m.user_id===Number(user.id)&&m.role_in_team==='PFMEA Owner'));
 
+  // FLOW provides the initial editable view; explicit edits and recovered drafts take precedence.
+  const localRows = React.useMemo(() => {
+    if (editedRows !== null) return editedRows;
+    const existingRows = pfmeaDetail?.worksheet_rows ?? [];
+    if (!pfmeaDetail || !pfmeaId || !flowchartDetail?.steps.length || pendingDraft || isReadOnly) {
+      return existingRows;
+    }
+    const synced = syncRowsFromFlowchartSteps(
+      flowchartDetail.steps, pfmeaId, pfmeaDetail.part_number || '', existingRows
+    );
+    return hasWorksheetChanges(synced, existingRows) ? synced : existingRows;
+  }, [editedRows, pfmeaDetail, pfmeaId, flowchartDetail, pendingDraft, isReadOnly]);
+
+  const worksheetHasChanges = isWorksheetDirty || hasWorksheetChanges(localRows, pfmeaDetail?.worksheet_rows || []);
+  const hasUnsavedChanges = isHeaderDirty || worksheetHasChanges;
+
   const mergedHeader = React.useMemo(() => {
     if (!pfmeaDetail) return null;
     return { ...pfmeaDetail, ...(localHeader || {}) };
   }, [pfmeaDetail, localHeader]);
 
   useEffect(() => {
-    if (!draftStorageKey || !pfmeaDetail || (!isWorksheetDirty && !isHeaderDirty)) return;
+    if (!draftStorageKey || !pfmeaDetail || (!worksheetHasChanges && !isHeaderDirty) || pendingDraft || isReadOnly) return;
     const timer = setTimeout(() => { if (!saveDraft(draftStorageKey, draftRevision || pfmeaDetail.lock_version, { rows: localRows, header: isHeaderDirty ? localHeader : null })) toast.error('No se pudo guardar el borrador local. Guarda el documento en el servidor.'); }, 1000);
     return () => clearTimeout(timer);
-  }, [draftStorageKey, pfmeaDetail, isWorksheetDirty, isHeaderDirty, localRows, localHeader, draftRevision]);
+  }, [draftStorageKey, pfmeaDetail, worksheetHasChanges, isHeaderDirty, localRows, localHeader, draftRevision, pendingDraft, isReadOnly]);
 
   const handleRowsChange = useCallback((rows: WorksheetRow[]) => {
     setLocalRows(rows);
@@ -145,9 +160,20 @@ export const PFMEAEditorPage: React.FC = () => {
     setDraftRevision(previous => previous || pfmeaDetail?.lock_version || null);
   }, [pfmeaDetail?.lock_version]);
 
-
-  const worksheetHasChanges = isWorksheetDirty || hasWorksheetChanges(localRows, pfmeaDetail?.worksheet_rows || []);
-  const hasUnsavedChanges = isHeaderDirty || worksheetHasChanges;
+  const handleSyncFlowchart = useCallback(() => {
+    if (!pfmeaDetail || !pfmeaId || !flowchartDetail?.steps?.length) {
+      toast.error('No hay pasos en el diagrama de flujo vinculado para sincronizar.');
+      return;
+    }
+    const synced = syncRowsFromFlowchartSteps(
+      flowchartDetail.steps,
+      pfmeaId,
+      pfmeaDetail.part_number || '',
+      localRows
+    );
+    handleRowsChange(synced);
+    toast.success('Operaciones y sub-operaciones sincronizadas desde el Diagrama de Flujo');
+  }, [pfmeaDetail, pfmeaId, flowchartDetail, localRows, handleRowsChange]);
 
   const handleSaveAllGlobal = useCallback(async (rowsToSave = localRows) => {
     try {
@@ -255,6 +281,7 @@ export const PFMEAEditorPage: React.FC = () => {
                 onChangeLayout={setCurrentLayout}
                 flowchartId={pfmeaDetail.flowchart_id}
                 pfmeaId={pfmeaId!}
+                onSyncFlowchart={handleSyncFlowchart}
                 docId={pfmeaDetail.pfmea_id_number || `#${pfmeaId}`}
                 projectName={pfmeaDetail.project_name}
                 isReadOnly={isReadOnly}

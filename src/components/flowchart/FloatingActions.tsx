@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Save, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useFlowchart } from '../../hooks/useFlowchart';
 import { useAutoSave } from '../../hooks/useAutoSave';
-import { saveFlowchartDocument, type FlowchartStepPayload } from '../../services/flowchartService';
+import { saveFlowchartDocument, getFlowchartById, type FlowchartStepPayload, type FlowchartUpdatePayload } from '../../services/flowchartService';
 import { toast } from 'sonner';
 
 export function FloatingActions() {
@@ -57,22 +57,6 @@ export function FloatingActions() {
     // Auto-save local draft before pushing
     saveLocally();
 
-    // Map local steps to the backend payload format
-    const stepsPayload: FlowchartStepPayload[] = state.steps.map((step) => ({
-      id: Number.isInteger(Number(step.id)) && Number(step.id)>0 ? Number(step.id) : undefined,
-      step_number: step.sequence,
-      sub_step: step.subStep || 0,
-      custom_description: step.description || step.operationName || null,
-      technology_id: step.operationId ? Number(step.operationId) : null,
-      machinery_id: step.machineryId ?? null,
-      responsible_department: step.responsibleDepartment || 'Producción',
-      symbol_type: step.symbolType || 'operation',
-      critical_flag: step.criticalFlag || 'none',
-      product_characteristics: step.productCharacteristics || null,
-      process_characteristics: step.processCharacteristics || null,
-      target: step.target || null,
-    }));
-
     // Map local header to the backend update payload format
     let headerStatus = forcedStatus;
     if (!headerStatus) {
@@ -80,27 +64,80 @@ export function FloatingActions() {
       else if (state.header.diagramStatus === 'in_review') headerStatus = 'In Review';
       else headerStatus = 'Draft';
     }
-    const headerPayload = {
+    const headerPayload: FlowchartUpdatePayload = {
       title: state.header.partName || 'Sin título',
       status: headerStatus,
-      customer_name: state.header.customer || '',
-      part_number: state.header.partNumber || '',
-      product_description: state.header.partName || '',
-      flowchart_code: state.header.projectId || '',
+      flowchart_code: state.header.projectId?.trim() || undefined,
     };
 
     dispatch({ type: 'SET_SAVING', payload: { isSaving: true } });
 
     try {
-      const saved = await saveFlowchartDocument(flowchartId, state.lockVersion || 1, headerPayload, stepsPayload);
+      // 1. Fetch latest server state to obtain guaranteed current lock_version and valid step IDs
+      let versionToUse = state.lockVersion || 1;
+      const validServerStepIds = new Set<number>();
+      const serverStepByPosition = new Map<string, number>();
+
+      try {
+        const latestDoc = await getFlowchartById(flowchartId);
+        if (latestDoc?.lock_version) {
+          versionToUse = latestDoc.lock_version;
+        }
+        if (Array.isArray(latestDoc?.steps)) {
+          for (const s of latestDoc.steps) {
+            validServerStepIds.add(s.id);
+            serverStepByPosition.set(`${s.step_number}:${s.sub_step || 0}`, s.id);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch latest flowchart before save:', e);
+      }
+
+      // 2. Map steps to payload ensuring every ID belongs to this diagram and is strictly unique
+      const usedIds = new Set<number>();
+      const stepsPayload: FlowchartStepPayload[] = state.steps.map((step, idx) => {
+        let stepId: number | undefined = undefined;
+        const rawNumId = Number(step.id);
+
+        if (Number.isInteger(rawNumId) && rawNumId > 0 && validServerStepIds.has(rawNumId) && !usedIds.has(rawNumId)) {
+          stepId = rawNumId;
+          usedIds.add(rawNumId);
+        } else {
+          // Check if there is an unassigned server step with matching sequence and subStep
+          const posKey = `${step.sequence}:${step.subStep || 0}`;
+          const candidateId = serverStepByPosition.get(posKey);
+          if (candidateId && validServerStepIds.has(candidateId) && !usedIds.has(candidateId)) {
+            stepId = candidateId;
+            usedIds.add(candidateId);
+          }
+        }
+
+        return {
+          id: stepId,
+          step_number: (step.sequence && step.sequence > 0) ? step.sequence : (idx + 1) * 10,
+          sub_step: step.subStep || 0,
+          custom_description: step.description || step.operationName || null,
+          technology_id: step.operationId ? Number(step.operationId) : null,
+          machinery_id: step.machineryId ?? null,
+          responsible_department: step.responsibleDepartment || 'Producción',
+          symbol_type: step.symbolType || 'operation',
+          critical_flag: step.criticalFlag || 'none',
+          product_characteristics: step.productCharacteristics || null,
+          process_characteristics: step.processCharacteristics || null,
+          target: step.target || null,
+        };
+      });
+
+      const saved = await saveFlowchartDocument(flowchartId, versionToUse, headerPayload, stepsPayload);
       const steps = state.steps.map((step,index)=>({...step,id:String(saved.steps[index]?.id || step.id)}));
       dispatch({ type:'LOAD_STATE',payload:{...state,steps,lockVersion:saved.lock_version,isDirty:false,isSaving:false,lastSaved:saved.updated_at} });
       if(user) discardDraft(draftKey(user.id,user.plant_id,'flowchart',flowchartId));
       toast.success(t('actions.successSave', 'Cambios guardados exitosamente'));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Remote save failed:', err);
       dispatch({ type: 'SET_SAVING', payload: { isSaving: false } });
-      toast.error(t('actions.errorSave', 'Error al guardar los cambios en la base de datos'));
+      const apiError = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(apiError || t('actions.errorSave', 'Error al guardar los cambios en la base de datos'));
     }
   };
 

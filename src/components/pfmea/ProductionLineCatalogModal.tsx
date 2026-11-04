@@ -3,18 +3,30 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, X, Plus, Trash2, Edit2, Loader2, Save } from 'lucide-react';
+import { Settings, X, Plus, Trash2, Edit2, Loader2, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { productionLineService } from '../../api/productionLineService';
+import { backdropVariants, modalCardVariants } from '../../utils/motion';
 
 interface ProductionLineCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProps> = ({ isOpen, onClose }) => {
+export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
   const { t } = useTranslation();
 
-  const { data: lines = [], isLoading, refetch } = useQuery({queryKey: ['lines', 'catalog'], queryFn: () => productionLineService.list(false), enabled: isOpen});
+  const {
+    data: lines = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['lines', 'catalog'],
+    queryFn: () => productionLineService.list(false),
+    enabled: isOpen,
+  });
   const [isPending, setIsPending] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -23,7 +35,9 @@ export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProp
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const loadLines = async () => { await refetch(); };
+  const loadLines = async () => {
+    await refetch();
+  };
 
   const handleEdit = (id: number, name: string) => {
     setEditingId(id);
@@ -37,9 +51,10 @@ export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProp
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(sortedLines.length / ITEMS_PER_PAGE);
-  const paginatedLines = sortedLines.slice((Math.min(currentPage, Math.max(1, totalPages)) - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-
+  const paginatedLines = sortedLines.slice(
+    (Math.min(currentPage, Math.max(1, totalPages)) - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   const handleSaveEdit = async (id: number) => {
     if (!editName.trim()) return;
@@ -84,182 +99,218 @@ export const ProductionLineCatalogModal: React.FC<ProductionLineCatalogModalProp
     }
   };
 
-  if (!isOpen) return null;
-
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-steel-950/80 backdrop-blur-sm pointer-events-auto"
-          onClick={onClose}
-        />
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 15 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 15 }}
-          className="bg-steel-900 border border-steel-800 rounded-2xl w-full max-w-md pointer-events-auto overflow-hidden flex flex-col shadow-2xl relative z-10"
-        >
-          <div className="px-6 py-4 border-b border-steel-800/80 flex items-center justify-between bg-steel-950/50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                <Settings size={20} />
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+          <motion.div
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-steel-950/75 backdrop-blur-sm pointer-events-auto"
+            onClick={onClose}
+          />
+          <motion.div
+            variants={modalCardVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-[var(--ui-surface)] text-[var(--ui-ink)] border border-[var(--ui-line)] rounded-[var(--ui-panel-radius)] w-full max-w-md pointer-events-auto overflow-hidden flex flex-col shadow-[var(--ui-shadow-popover)] relative z-10"
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-[var(--ui-line)] flex items-center justify-between bg-[var(--ui-surface-subtle)]">
+              <div className="flex items-center gap-2.5">
+                <div className="detail-spec-icon" style={{ width: 36, height: 36 }}>
+                  <Settings size={18} />
+                </div>
+                <h3 className="text-base font-semibold text-[var(--ui-ink)]">
+                  {t('pfmea.catalog.productionLine.title', 'Catálogo de Líneas de Producción')}
+                </h3>
               </div>
-              <h3 className="text-lg font-semibold text-steel-100">
-                {t('pfmea.catalog.productionLine.title', 'Catálogo de Líneas de Producción')}
-              </h3>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ui-icon-button"
+                aria-label={t('common.close', 'Cerrar')}
+              >
+                <X size={18} />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 text-steel-400 hover:bg-steel-800 rounded-lg transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="text-sm font-semibold text-steel-400 uppercase">
-                {t('pfmea.catalog.productionLine.list', 'Líneas Registradas')}
-              </h4>
-              {!isAdding && (
-                <button
-                  onClick={() => setIsAdding(true)}
-                  className="text-xs flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer"
-                >
-                  <Plus size={14} /> {t('actions.add', 'Agregar')}
-                </button>
+            {/* Content */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto bg-[var(--ui-surface)]">
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="detail-label uppercase tracking-wider text-xs">
+                  {t('pfmea.catalog.productionLine.list', 'Líneas Registradas')}
+                </h4>
+                {!isAdding && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdding(true)}
+                    className="text-xs flex items-center gap-1 text-[var(--ui-accent)] hover:underline font-medium cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>{t('actions.add', 'Agregar')}</span>
+                  </button>
+                )}
+              </div>
+
+              {isAdding && (
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    placeholder={t('pfmea.catalog.productionLine.name', 'Nombre de la Línea...')}
+                    className="ui-input param-input-compact flex-1"
+                    autoFocus
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAdd}
+                    disabled={isPending || !newName.trim()}
+                    className="ui-button ui-button-success"
+                    style={{ minHeight: 38, padding: '8px 12px' }}
+                  >
+                    {isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdding(false);
+                      setNewName('');
+                    }}
+                    className="ui-icon-button"
+                    style={{ minHeight: 38, width: 38, padding: 8 }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              {isLoading ? (
+                <div className="flex justify-center py-6 text-[var(--ui-muted)]">
+                  <Loader2 className="animate-spin text-[var(--ui-accent)]" size={20} />
+                </div>
+              ) : sortedLines.length === 0 ? (
+                <p className="text-sm text-[var(--ui-muted)] text-center py-6">
+                  {t('common.noData', 'No hay registros')}
+                </p>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    {paginatedLines.map(line => (
+                      <div
+                        key={line.id}
+                        className="flex items-center justify-between p-3 rounded-[var(--ui-radius)] bg-[var(--ui-surface-subtle)] border border-[var(--ui-line)] group transition-colors hover:border-[var(--ui-line-strong)]"
+                      >
+                        {editingId === line.id ? (
+                          <div className="flex-1 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={e => setEditName(e.target.value)}
+                              className="ui-input param-input-compact flex-1"
+                              autoFocus
+                              onKeyDown={e => e.key === 'Enter' && handleSaveEdit(line.id)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEdit(line.id)}
+                              disabled={isPending || !editName.trim()}
+                              className="ui-button ui-button-success"
+                              style={{ minHeight: 36, padding: '6px 10px' }}
+                            >
+                              {isPending ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Save size={14} />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="ui-icon-button"
+                              style={{ minHeight: 36, width: 36, padding: 6 }}
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm text-[var(--ui-ink)] font-medium truncate">
+                                {line.name}
+                              </span>
+                              {!line.is_active && (
+                                <span className="text-[10px] bg-[var(--ui-danger-bg)] text-[var(--ui-danger)] border border-[var(--ui-danger-border)] px-2 py-0.5 rounded-full font-medium">
+                                  {t('common.inactive', 'Inactivo')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(line.id, line.name)}
+                                className="ui-icon-button"
+                                style={{ minHeight: 32, width: 32, padding: 6 }}
+                                title={t('actions.edit', 'Editar')}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(line.id)}
+                                className="ui-icon-button param-delete-btn"
+                                style={{ minHeight: 32, width: 32, padding: 6 }}
+                                title={t('actions.delete', 'Eliminar')}
+                                disabled={isPending}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--ui-line)] text-xs text-[var(--ui-muted)] tabular-nums">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="ui-icon-button"
+                        style={{ minHeight: 30, width: 30, padding: 5 }}
+                        aria-label="Anterior"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="document-card-id">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="ui-icon-button"
+                        style={{ minHeight: 30, width: 30, padding: 5 }}
+                        aria-label="Siguiente"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-
-            {isAdding && (
-              <div className="flex items-center gap-2 mb-4">
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder={t('pfmea.catalog.productionLine.name', 'Nombre de la Línea...')}
-                  className="flex-1 bg-steel-950 border border-steel-700 rounded-lg px-3 py-2 text-sm text-steel-100 focus:outline-none focus:border-indigo-500"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                />
-                <button
-                  onClick={handleAdd}
-                  disabled={isPending || !newName.trim()}
-                  className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
-                >
-                  {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                </button>
-                <button
-                  onClick={() => {
-                    setIsAdding(false);
-                    setNewName('');
-                  }}
-                  className="p-2 text-steel-400 hover:bg-steel-800 rounded-lg cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-
-            {isLoading ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="animate-spin text-indigo-500" />
-              </div>
-            ) : sortedLines.length === 0 ? (
-              <p className="text-sm text-steel-500 text-center py-4">
-                {t('common.noData', 'No hay registros')}
-              </p>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  {paginatedLines.map((line) => (
-                    <div key={line.id} className="flex items-center justify-between p-3 rounded-lg bg-steel-950 border border-steel-800 group">
-                      {editingId === line.id ? (
-                        <div className="flex-1 flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="flex-1 bg-steel-900 border border-steel-700 rounded px-2 py-1 text-sm text-steel-100 focus:outline-none focus:border-indigo-500"
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(line.id)}
-                          />
-                          <button
-                            onClick={() => handleSaveEdit(line.id)}
-                            disabled={isPending || !editName.trim()}
-                            className="text-green-500 hover:text-green-400 p-1 cursor-pointer"
-                          >
-                            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="text-steel-400 hover:text-steel-200 p-1 cursor-pointer"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-steel-200">{line.name}</span>
-                            {!line.is_active && (
-                              <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">
-                                {t('common.inactive', 'Inactivo')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEdit(line.id, line.name)}
-                              className="p-1.5 text-steel-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer"
-                              title={t('actions.edit', 'Editar')}
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(line.id)}
-                              className="p-1.5 text-steel-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                              title={t('actions.delete', 'Eliminar')}
-                              disabled={isPending}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-steel-800">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-xs text-steel-400 hover:text-steel-200 hover:bg-steel-800 rounded disabled:opacity-50 transition-colors cursor-pointer"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-xs text-steel-500">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-xs text-steel-400 hover:text-steel-200 hover:bg-steel-800 rounded disabled:opacity-50 transition-colors cursor-pointer"
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 };
