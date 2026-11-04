@@ -13,18 +13,11 @@ export interface FlowchartMasterGroup {
 }
 
 /**
- * Formats the Process Function / Requirements column by concatenating
- * PRODUCT CHARACTERISTICS and TARGET with a newline, per specification.
+ * Helper kept for backwards compatibility; PFMEA text fields are independent
+ * from Flowchart text fields.
  */
-export function formatStepRequirements(step: FlowchartStepRead): string {
-  const parts: string[] = [];
-  if (step.product_characteristics && step.product_characteristics.trim()) {
-    parts.push(step.product_characteristics.trim());
-  }
-  if (step.target && step.target.trim()) {
-    parts.push(step.target.trim());
-  }
-  return parts.join('\n');
+export function formatStepRequirements(_step?: FlowchartStepRead): string {
+  return '';
 }
 
 /**
@@ -91,11 +84,12 @@ export function groupFlowchartStepsByMaster(steps: FlowchartStepRead[]): Flowcha
 }
 
 /**
- * Synchronizes PFMEA WorksheetRows from FlowchartStepRead[].
+ * Synchronizes PFMEA WorksheetRows structure from FlowchartStepRead[].
  * - Each Master Operation section contains a row for the master operation itself
  *   plus a row for each of its sub-operations.
- * - Captures PRODUCT CHARACTERISTICS + '\n' + TARGET into function_process_step.
- * - Preserves existing failure analysis data on matched rows.
+ * - All text fields, columns, and values (Process Function / Requirements,
+ *   Product/Process Characteristics, Special Characteristics, etc.) remain
+ *   completely independent between the Flowchart and the PFMEA.
  */
 export function syncRowsFromFlowchartSteps(
   flowchartSteps: FlowchartStepRead[],
@@ -128,10 +122,6 @@ export function syncRowsFromFlowchartSteps(
     const targetSteps = [group.master, ...group.subSteps];
 
     for (const step of targetSteps) {
-      const reqText = formatStepRequirements(step);
-      const isCrit = step.critical_flag === 'SC' || step.critical_flag === 'CC';
-      const inheritedSpecialChar = isCrit ? step.critical_flag : '';
-
       const existingForStep = rowsByStepId.get(step.id) || [];
 
       if (existingForStep.length > 0) {
@@ -141,14 +131,7 @@ export function syncRowsFromFlowchartSteps(
             ...existingRow,
             process_item_name: existingRow.process_item_name?.trim() || partNumber || '',
             station_operation: group.opTitle,
-            operation_type: step.symbol_type || existingRow.operation_type,
-            function_process_step: reqText || existingRow.function_process_step || '',
-            product_characteristic:
-              step.product_characteristics?.trim() || existingRow.product_characteristic || '',
-            process_characteristic:
-              step.process_characteristics?.trim() || existingRow.process_characteristic || '',
-            special_characteristics:
-              existingRow.special_characteristics?.trim() || inheritedSpecialChar || '',
+            operation_type: existingRow.operation_type || step.symbol_type,
             sequence_order: seqCounter,
           });
           seqCounter += 10;
@@ -166,10 +149,10 @@ export function syncRowsFromFlowchartSteps(
           function_process_item_plant: '',
           function_process_item_customer: '',
           function_process_item_end_user: '',
-          function_process_step: reqText,
-          product_characteristic: step.product_characteristics?.trim() || '',
+          function_process_step: '',
+          product_characteristic: '',
           function_work_element: '',
-          process_characteristic: step.process_characteristics?.trim() || '',
+          process_characteristic: '',
           failure_mode: '',
           failure_effect_plant: '',
           failure_effect_customer: '',
@@ -181,7 +164,7 @@ export function syncRowsFromFlowchartSteps(
           detection_controls: '',
           detection: undefined,
           action_priority: undefined,
-          special_characteristics: inheritedSpecialChar,
+          special_characteristics: '',
           optimization_prevention_action: '',
           optimization_detection_action: '',
           responsible_person_id: undefined,
@@ -209,4 +192,3 @@ export function syncRowsFromFlowchartSteps(
 
   return finalRows;
 }
-

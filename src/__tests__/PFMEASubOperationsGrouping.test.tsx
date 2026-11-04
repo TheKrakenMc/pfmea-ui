@@ -5,7 +5,6 @@ import { usePFMEAValidation } from '../hooks/usePFMEAValidation';
 import {
   groupFlowchartStepsByMaster,
   syncRowsFromFlowchartSteps,
-  formatStepRequirements,
 } from '../utils/pfmeaRowSync';
 import { PFMEAOperationBanner } from '../components/pfmea/PFMEAOperationBanner';
 import type { FlowchartStepRead } from '../services/flowchartService';
@@ -79,7 +78,7 @@ const referenceFlowchartSteps: FlowchartStepRead[] = [
   }),
 ];
 
-describe('PFMEA Master Operation Grouping & Sub-Operation Row Conversion', () => {
+describe('PFMEA Master Operation Grouping & Independent Fields from Flowchart', () => {
   it('groups 9 flowchart steps (4 masters + 5 sub-ops) into strictly 4 master groups', () => {
     const groups = groupFlowchartStepsByMaster(referenceFlowchartSteps);
     expect(groups).toHaveLength(4);
@@ -91,7 +90,7 @@ describe('PFMEA Master Operation Grouping & Sub-Operation Row Conversion', () =>
     expect(groups[3].subSteps).toHaveLength(0);
   });
 
-  it('generates a row for each master operation AND each sub-operation with PRODUCT CHARACTERISTICS + newline + TARGET in function_process_step', () => {
+  it('generates rows for master and sub-operations with independent text fields (does not clone Flowchart characteristics or target)', () => {
     const rows = syncRowsFromFlowchartSteps(referenceFlowchartSteps, 77, 'PN-9000', []);
 
     // OP 10 (1 master + 2 sub-ops = 3) + OP 20 (1 master) + OP 30 (1 master + 3 sub-ops = 4) + OP 40 (1 master) = 9 rows
@@ -101,31 +100,37 @@ describe('PFMEA Master Operation Grouping & Sub-Operation Row Conversion', () =>
     const op10Rows = rows.filter((r) => r.station_operation === '[OP 10] Receiving Inspection');
     expect(op10Rows).toHaveLength(3);
     expect(op10Rows.map((r) => r.flowchart_step_id)).toEqual([100, 101, 102]);
-    expect(op10Rows[0].function_process_step).toBe(
-      'Certificado de calidad de lote\n100% conforme a especificación'
-    );
-    expect(op10Rows[1].function_process_step).toBe('Espesor de rollo\n3.5 ± 0.2 mm');
-    expect(op10Rows[2].function_process_step).toBe('Densidad superficial\n650 g/m²');
 
-    // Check OP 20 master row
-    const op20Rows = rows.filter(
-      (r) => r.station_operation === '[OP 20] Staging of raw materials'
-    );
-    expect(op20Rows).toHaveLength(1);
-    expect(op20Rows[0].flowchart_step_id).toBe(200);
-    expect(op20Rows[0].function_process_step).toBe(
-      'Condición de empaque\nSin humedad ni roturas'
+    // Text fields must be independent (empty on creation, not cloned from Flowchart)
+    for (const row of rows) {
+      expect(row.function_process_step).toBe('');
+      expect(row.product_characteristic).toBe('');
+      expect(row.process_characteristic).toBe('');
+      expect(row.special_characteristics).toBe('');
+    }
+  });
+
+  it('preserves user-entered PFMEA text fields independently when syncing with Flowchart', () => {
+    const initialRows = syncRowsFromFlowchartSteps(referenceFlowchartSteps, 77, 'PN-9000', []);
+    initialRows[1] = {
+      ...initialRows[1],
+      function_process_step: 'Requisito propio del PFMEA',
+      product_characteristic: 'Característica PFMEA independiente',
+      process_characteristic: 'Parámetro PFMEA independiente',
+      special_characteristics: 'SC',
+    };
+
+    const resynced = syncRowsFromFlowchartSteps(
+      referenceFlowchartSteps,
+      77,
+      'PN-9000',
+      initialRows
     );
 
-    // Check OP 30 rows (master 30 + sub-ops 30.1, 30.2, 30.3) & CC inheritance
-    const op30Rows = rows.filter((r) => r.station_operation === '[OP 30] Molding');
-    expect(op30Rows).toHaveLength(4);
-    expect(op30Rows.map((r) => r.flowchart_step_id)).toEqual([300, 301, 302, 303]);
-    expect(op30Rows[0].function_process_step).toBe(
-      'Conformado general de alfombra\nSin pliegues ni deformaciones'
-    );
-    expect(op30Rows[2].special_characteristics).toBe('CC');
-    expect(op30Rows[2].function_process_step).toBe('Geometría de cavidad crítica\n2.0 ± 0.1 mm');
+    expect(resynced[1].function_process_step).toBe('Requisito propio del PFMEA');
+    expect(resynced[1].product_characteristic).toBe('Característica PFMEA independiente');
+    expect(resynced[1].process_characteristic).toBe('Parámetro PFMEA independiente');
+    expect(resynced[1].special_characteristics).toBe('SC');
   });
 
   it('generates only 4 operation sections in usePFMEAValidation and links both master and sub-operation rows under their master operation', () => {
@@ -141,10 +146,8 @@ describe('PFMEA Master Operation Grouping & Sub-Operation Row Conversion', () =>
     expect(result.current.operations[0].totalRows).toBe(3);
     // OP 20 has 1 row (20)
     expect(result.current.operations[1].totalRows).toBe(1);
-    // OP 30 has 4 rows (30, 30.1, 30.2, 30.3) and detects SC/CC
+    // OP 30 has 4 rows (30, 30.1, 30.2, 30.3)
     expect(result.current.operations[2].totalRows).toBe(4);
-    expect(result.current.operations[2].requiresScCc).toBe(true);
-    expect(result.current.operations[2].hasScCc).toBe(true);
     // OP 40 has 1 row (40)
     expect(result.current.operations[3].totalRows).toBe(1);
   });
@@ -168,25 +171,5 @@ describe('PFMEA Master Operation Grouping & Sub-Operation Row Conversion', () =>
     expect(screen.getByText('OP 10')).toBeTruthy();
     expect(screen.getByText('Receiving Inspection')).toBeTruthy();
     expect(screen.queryByText('[OP 10] Receiving Inspection')).toBeNull();
-  });
-
-  it('formatStepRequirements handles empty and partial inputs cleanly', () => {
-    expect(
-      formatStepRequirements(
-        createStep(1, 10, 1, 'Test', {
-          product_characteristics: 'Diámetro interior',
-          target: '12.0 mm',
-        })
-      )
-    ).toBe('Diámetro interior\n12.0 mm');
-
-    expect(
-      formatStepRequirements(
-        createStep(2, 10, 2, 'Test', {
-          product_characteristics: 'Solo característica',
-          target: null,
-        })
-      )
-    ).toBe('Solo característica');
   });
 });
