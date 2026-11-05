@@ -78,7 +78,8 @@ export const PFMEAMasterHeader: React.FC<PFMEAMasterHeaderProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const role = user?.role_name || '';
-  const canManage=role==='Administrator' || role==='PFMEA Owner' && (header.owner_id===Number(user?.id) || !!header.team_members?.some(member=>member.user_id===Number(user?.id)&&member.role_in_team==='PFMEA Owner'));
+  const isAdmin = role.toLowerCase() === 'administrator' || role.toLowerCase() === 'admin';
+  const canManage = isAdmin || (role === 'PFMEA Owner' && (header.owner_id === Number(user?.id) || !!header.team_members?.some(member => member.user_id === Number(user?.id) && member.role_in_team === 'PFMEA Owner')));
 
   const validation = usePFMEAValidation(rows, flowchartSteps, currentLayout);
 
@@ -90,10 +91,18 @@ export const PFMEAMasterHeader: React.FC<PFMEAMasterHeaderProps> = ({
   const [isTeamMemberModalOpen, setIsTeamMemberModalOpen] = useState(false);
 
   const getAvailableStatuses = (): string[] => {
-    const current=header.moc_status;
-    if(!canManage)return [current];
-    const next:Record<string,string[]>={Draft:['In Review'],'In Review':['Draft','Approved'],Approved:['Archived'],Archived:[]};
-    return [current,...(next[current] || [])];
+    if (isAdmin) {
+      return ['Draft', 'In Review', 'Approved', 'Archived'];
+    }
+    const current = header.moc_status;
+    if (!canManage) return [current];
+    const next: Record<string, string[]> = {
+      Draft: ['In Review'],
+      In Review: ['Draft', 'Approved'],
+      Approved: ['Archived'],
+      Archived: [],
+    };
+    return [current, ...(next[current] || [])];
   };
   const availableStatuses = getAvailableStatuses();
 
@@ -206,7 +215,7 @@ export const PFMEAMasterHeader: React.FC<PFMEAMasterHeaderProps> = ({
   }, [formDataString, isDirty, onLocalChange]);
 
   const handleStatusChange = (newStatus: string) => {
-    if (newStatus === 'Approved' && !validation.canRelease) {
+    if (newStatus === 'Approved' && !isAdmin && !validation.canRelease) {
       toast.error(validation.releaseBlockReason, {
         description: 'Complete todos los campos mandatorios y asegure la asignación de características críticas (SC/CC) a las operaciones requeridas desde el diagrama de flujo antes de liberar.',
         duration: 6000,

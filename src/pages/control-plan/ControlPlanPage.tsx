@@ -163,8 +163,9 @@ export const ControlPlanPage: React.FC = () => {
   const filteredControlPlans=allControlPlans ?? [];
   const paginatedControlPlans=filteredControlPlans;
   const selectedProject=analyses?.find(p=>p.id===selectedPfmeaId);
-  const ownProject=user?.role_name==='Administrator' || (user?.role_name==='PFMEA Owner' && (selectedProject?.owner_id===Number(user.id) || selectedProject?.team_members?.some(m=>m.user_id===Number(user.id)&&m.role_in_team==='PFMEA Owner')));
-  const readOnly=!['Administrator','PFMEA Owner','Team Member'].includes(user?.role_name || '') || user?.role_name!=='Administrator' && !!selectedProject?.team_members?.some(m=>m.user_id===Number(user?.id)&&m.role_in_team==='Viewer') || !!cpDetail && ['Approved','Archived'].includes(cpDetail.status);
+  const isAdmin = user?.role_name?.toLowerCase() === 'administrator' || user?.role_name?.toLowerCase() === 'admin';
+  const ownProject = isAdmin || (user?.role_name === 'PFMEA Owner' && (selectedProject?.owner_id === Number(user.id) || selectedProject?.team_members?.some(m => m.user_id === Number(user.id) && m.role_in_team === 'PFMEA Owner')));
+  const readOnly = (!isAdmin && (!['PFMEA Owner', 'Team Member'].includes(user?.role_name || '') || !!selectedProject?.team_members?.some(m => m.user_id === Number(user?.id) && m.role_in_team === 'Viewer') || (!!cpDetail && ['Approved', 'Archived'].includes(cpDetail.status))));
 
 
   // Mutations

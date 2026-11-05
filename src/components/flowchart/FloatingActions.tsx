@@ -17,41 +17,45 @@ export function FloatingActions() {
   const handleSaveRemotely = async (forcedStatus?: string) => {
     if (flowchartId === null) return;
 
-    // Validation: Check master operations with '@' flag that require at least one CC/SC in sub-steps
-    const invalidMasters = state.steps.filter((master) => {
-      const isMaster = !master.subStep || master.subStep === 0;
-      if (!isMaster) return false;
+    const isAdmin = user?.role_name?.toLowerCase() === 'administrator' || user?.role_name?.toLowerCase() === 'admin';
 
-      const hasSubSteps = state.steps.some(
-        (s) => s.sequence === master.sequence && s.subStep > 0
-      );
-      if (!hasSubSteps) return false;
+    // Validation: Check master operations with '@' flag that require at least one CC/SC in sub-steps (Administrator bypasses)
+    if (!isAdmin) {
+      const invalidMasters = state.steps.filter((master) => {
+        const isMaster = !master.subStep || master.subStep === 0;
+        if (!isMaster) return false;
 
-      const isFlaggedAt =
-        master.criticalFlag === '@' ||
-        master.criticalFlag === 'CC' ||
-        master.criticalFlag === 'SC';
-      if (!isFlaggedAt) return false;
+        const hasSubSteps = state.steps.some(
+          (s) => s.sequence === master.sequence && s.subStep > 0
+        );
+        if (!hasSubSteps) return false;
 
-      const hasSubCritical = state.steps.some(
-        (s) =>
-          s.sequence === master.sequence &&
-          s.subStep > 0 &&
-          (s.criticalFlag === 'CC' || s.criticalFlag === 'SC')
-      );
+        const isFlaggedAt =
+          master.criticalFlag === '@' ||
+          master.criticalFlag === 'CC' ||
+          master.criticalFlag === 'SC';
+        if (!isFlaggedAt) return false;
 
-      return !hasSubCritical;
-    });
+        const hasSubCritical = state.steps.some(
+          (s) =>
+            s.sequence === master.sequence &&
+            s.subStep > 0 &&
+            (s.criticalFlag === 'CC' || s.criticalFlag === 'SC')
+        );
 
-    if (invalidMasters.length > 0) {
-      const seqs = invalidMasters.map((m) => `Paso ${m.sequence}`).join(', ');
-      toast.error(
-        t(
-          'validation.missingSubCritical',
-          `Atención: ${seqs} tiene la bandera @ activa pero requiere indicar al menos una característica SC o CC en alguna operación intermedia.`
-        )
-      );
-      return;
+        return !hasSubCritical;
+      });
+
+      if (invalidMasters.length > 0) {
+        const seqs = invalidMasters.map((m) => `Paso ${m.sequence}`).join(', ');
+        toast.error(
+          t(
+            'validation.missingSubCritical',
+            `Atención: ${seqs} tiene la bandera @ activa pero requiere indicar al menos una característica SC o CC en alguna operación intermedia.`
+          )
+        );
+        return;
+      }
     }
 
     // Auto-save local draft before pushing
@@ -177,7 +181,7 @@ export function FloatingActions() {
         }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        disabled={state.isSaving || !isDirty || user?.role_name === 'Viewer' || ['approved','archived'].includes(state.header.diagramStatus)}
+        disabled={state.isSaving || !isDirty || user?.role_name === 'Viewer'}
         className="flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-500 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-blue-600/25 transition-all disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
       >
         {state.isSaving ? (

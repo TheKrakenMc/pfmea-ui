@@ -51,22 +51,23 @@ export function FlowchartHeader() {
   };
 
   const getAvailableStatuses = (): DiagramStatus[] => {
+    const isAdmin = role.toLowerCase() === 'administrator' || role.toLowerCase() === 'admin';
+    if (isAdmin) {
+      return ['draft', 'in_review', 'approved', 'archived'];
+    }
     const current = header.diagramStatus;
     const statuses: DiagramStatus[] = [current];
 
     if (current === 'draft') {
-      if (role === 'PFMEA Owner' || role === 'Administrator') {
-        statuses.push('in_review');
-      }
-      if (role === 'PFMEA Owner' || role === 'Administrator') {
-        statuses.push('approved');
+      if (role === 'PFMEA Owner') {
+        statuses.push('in_review', 'approved');
       }
     } else if (current === 'in_review') {
-      if (role === 'PFMEA Owner' || role === 'Administrator') {
-        statuses.push('approved');
+      if (role === 'PFMEA Owner') {
+        statuses.push('draft', 'approved');
       }
     } else if (current === 'approved') {
-      if (role === 'PFMEA Owner' || role === 'Administrator') {
+      if (role === 'PFMEA Owner') {
         statuses.push('archived');
       }
     }

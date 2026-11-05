@@ -4,7 +4,7 @@ import { draftKey, loadDraft, discardDraft, type Draft } from '../../services/dr
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Loader2, Copy, ArrowDownCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FlowchartWorkspace } from '../../components/flowchart/FlowchartWorkspace';
 import { ArchivedBanner } from '../../components/flowchart/ArchivedBanner';
@@ -12,8 +12,10 @@ import { DraftRecoveryBanner } from '../../components/flowchart/DraftRecoveryBan
 import { ObsoleteWatermark } from '../../components/flowchart/ObsoleteWatermark';
 import { DocumentHistoryDrawer } from '../../components/flowchart/DocumentHistoryDrawer';
 import { ExportFlowchartButton } from '../../components/flowcharts/ExportFlowchartButton';
+import { CloneFlowchartModal } from '../../components/flowchart/CloneFlowchartModal';
+import { CopyStepsModal } from '../../components/flowchart/CopyStepsModal';
 import { useFlowchart } from '../../hooks/useFlowchart';
-import { getFlowchartById } from '../../services/flowchartService';
+import { getFlowchartById, type FlowchartRead } from '../../services/flowchartService';
 import { listTechnologies } from '../../services/technologyService';
 import type { FlowchartState, CriticalFlag, SymbolType } from '../../types/flowchart.types';
 
@@ -30,7 +32,11 @@ export const FlowchartEditorPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('');
   const [docStatus, setDocStatus] = useState<string>('');
+  const [docData, setDocData] = useState<FlowchartRead | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
+  const [isCopyStepsModalOpen, setIsCopyStepsModalOpen] = useState(false);
+  const techMapRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     const flowchartId = Number(id);
@@ -51,6 +57,7 @@ export const FlowchartEditorPage: React.FC = () => {
 
         setTitle(data.title);
         setDocStatus(data.status || '');
+        setDocData(data);
         serverLockVersionRef.current = data.lock_version;
 
         // Build a map of technology ID string -> name
@@ -58,6 +65,7 @@ export const FlowchartEditorPage: React.FC = () => {
         for (const t of techs) {
           techMap.set(String(t.id), t.name);
         }
+        techMapRef.current = techMap;
 
         // Map backend data to FlowchartState and hydrate context
         const hydratedState: FlowchartState = {
@@ -123,6 +131,42 @@ export const FlowchartEditorPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [id, dispatch, user]);
 
+  const handleStepsCopied = (updatedDoc: FlowchartRead) => {
+    if (user && id) {
+      discardDraft(draftKey(user.id, user.plant_id, 'flowchart', Number(id)));
+    }
+    serverLockVersionRef.current = updatedDoc.lock_version;
+    setDocData(updatedDoc);
+    const mappedSteps = updatedDoc.steps.map((step) => {
+      const opId = step.technology_id ? String(step.technology_id) : '';
+      return {
+        id: String(step.id),
+        sequence: step.step_number,
+        subStep: step.sub_step || 0,
+        operationId: opId,
+        operationName: opId ? (techMapRef.current.get(opId) || '') : '',
+        machineryId: step.machinery_id ?? null,
+        criticalFlag: (step.critical_flag as CriticalFlag) || 'none',
+        symbolType: (step.symbol_type as SymbolType) || 'operation',
+        responsibleDepartment: step.responsible_department || 'Producción',
+        description: step.custom_description || undefined,
+        productCharacteristics: step.product_characteristics || '',
+        processCharacteristics: step.process_characteristics || '',
+        target: step.target || '',
+      };
+    });
+    dispatch({
+      type: 'LOAD_STATE',
+      payload: {
+        ...state,
+        lockVersion: updatedDoc.lock_version,
+        steps: mappedSteps,
+        isDirty: false,
+        lastSaved: updatedDoc.updated_at,
+      },
+    });
+  };
+
   // ─── Loading State ─────────────────────────────────────────
   if (loading) {
     return (
@@ -162,8 +206,10 @@ export const FlowchartEditorPage: React.FC = () => {
     );
   }
 
+  const isAdmin = user?.role_name?.toLowerCase() === 'administrator' || user?.role_name?.toLowerCase() === 'admin';
   const isArchived = docStatus?.toLowerCase() === 'archived';
-  const isReadOnly=isArchived || docStatus?.toLowerCase()==='approved' || user?.role_name==='Viewer';
+  const isApproved = docStatus?.toLowerCase() === 'approved';
+  const isReadOnly = (!isAdmin && (isArchived || isApproved)) || user?.role_name === 'Viewer';
 
   return (
     <div className="flex flex-col min-h-full bg-slate-50/50 dark:bg-steel-950">
@@ -208,6 +254,29 @@ export const FlowchartEditorPage: React.FC = () => {
         />
       )}
 
+      {/* Clone Flowchart Modal */}
+      {docData && (
+        <CloneFlowchartModal
+          sourceFlowchart={docData}
+          isOpen={isCloneModalOpen}
+          onClose={() => setIsCloneModalOpen(false)}
+          onSuccess={(cloned) => {
+            navigate(`/flowcharts/${cloned.id}`);
+          }}
+        />
+      )}
+
+      {/* Copy Steps Modal */}
+      {id && (
+        <CopyStepsModal
+          targetFlowchartId={Number(id)}
+          targetFlowchartTitle={title}
+          isOpen={isCopyStepsModalOpen}
+          onClose={() => setIsCopyStepsModalOpen(false)}
+          onSuccess={handleStepsCopied}
+        />
+      )}
+
       {/* The Workspace Container */}
       <div className="flex-1 flex flex-col p-6 pt-4 gap-5">
         {/* Unified Document Toolbar */}
@@ -243,8 +312,33 @@ export const FlowchartEditorPage: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Export PDF Action & Status Badges */}
+          {/* Right: Export PDF Action, Clone / Copy Steps & Status Badges */}
           <div className="flex items-center gap-2.5">
+            {/* Copy Steps from another product */}
+            <button
+              type="button"
+              onClick={() => setIsCopyStepsModalOpen(true)}
+              disabled={isReadOnly}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/60 shadow-2xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t('flowchart.copyStepsTooltip', 'Copiar pasos desde otro producto o diagrama')}
+            >
+              <ArrowDownCircle size={14} className="text-indigo-600 dark:text-indigo-400" />
+              <span>{t('flowchart.copySteps', 'Copiar Pasos')}</span>
+            </button>
+
+            {/* Clone this diagram to another product */}
+            {docData && (
+              <button
+                type="button"
+                onClick={() => setIsCloneModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-steel-800 text-slate-700 dark:text-steel-200 hover:bg-slate-50 dark:hover:bg-steel-750 border border-slate-200 dark:border-steel-700/60 shadow-2xs transition-all cursor-pointer"
+                title={t('flowchart.cloneTooltip', 'Clonar este diagrama para otro producto')}
+              >
+                <Copy size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>{t('flowchart.clone', 'Clonar')}</span>
+              </button>
+            )}
+
             <ExportFlowchartButton
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-steel-800 text-slate-800 dark:text-steel-100 hover:bg-slate-200 dark:hover:bg-steel-700 border border-slate-200 dark:border-steel-700/60 shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             />
@@ -252,6 +346,10 @@ export const FlowchartEditorPage: React.FC = () => {
             {isArchived ? (
               <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-xs flex items-center gap-1.5">
                 {t('archive.status.archived', 'ARCHIVADO')}
+              </span>
+            ) : isApproved ? (
+              <span className="px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40 shadow-xs">
+                {t('common.approved', 'Aprobado')}
               </span>
             ) : (
               <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-500 text-amber-950 border-amber-600 shadow-xs">

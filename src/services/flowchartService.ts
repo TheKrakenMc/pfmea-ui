@@ -305,3 +305,33 @@ export async function getFlowchartHistory(
 export async function saveFlowchartDocument(id: number, expectedVersion: number, header: FlowchartUpdatePayload, steps: FlowchartStepPayload[]): Promise<FlowchartRead> {
   return (await axiosClient.put('/flowcharts/' + id + '/save', {expected_version:expectedVersion,header,steps}, {headers:{'If-Match':String(expectedVersion)}})).data;
 }
+
+/**
+ * Clone an existing flowchart to a target product, copying all process steps.
+ * POST /flowcharts/:id/clone
+ */
+export async function cloneFlowchart(
+  id: number,
+  payload: { target_product_id: number; title: string },
+): Promise<FlowchartRead> {
+  const { data } = await axiosClient.post<FlowchartRead>(
+    `/flowcharts/${id}/clone`,
+    payload,
+  );
+  return data;
+}
+
+/**
+ * Copy all steps from a source flowchart into the target flowchart.
+ * POST /flowcharts/:id/copy-steps
+ */
+export async function copyStepsFromFlowchart(
+  targetFlowchartId: number,
+  sourceFlowchartId: number,
+): Promise<FlowchartRead> {
+  const { data } = await axiosClient.post<FlowchartRead>(
+    `/flowcharts/${targetFlowchartId}/copy-steps`,
+    { source_flowchart_id: sourceFlowchartId },
+  );
+  return data;
+}

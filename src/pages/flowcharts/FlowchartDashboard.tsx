@@ -24,6 +24,7 @@ import { MultiSelectFilter } from '../../components/ui/MultiSelectFilter';
 import { SortDropdown } from '../../components/ui/SortDropdown';
 import { ArchiveConfirmModal } from '../../components/flowchart/ArchiveConfirmModal';
 import { DocumentHistoryDrawer } from '../../components/flowchart/DocumentHistoryDrawer';
+import { CloneFlowchartModal } from '../../components/flowchart/CloneFlowchartModal';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -105,6 +106,7 @@ export const FlowchartDashboard: React.FC = () => {
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<number | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [cloneSourceFlowchart, setCloneSourceFlowchart] = useState<FlowchartRead | null>(null);
 
   // ─── Fetch data from backend ───────────────────────────────
   useEffect(() => {
@@ -329,6 +331,7 @@ export const FlowchartDashboard: React.FC = () => {
   };
 
   const handleEdit = (id: number) => navigate(`/flowcharts/${id}`);
+  const handleClone = (project: FlowchartRead) => setCloneSourceFlowchart(project);
 
   // ─── Archive Handlers ──────────────────────────────────────
   const handleArchiveClick = (id: number) => {
@@ -430,6 +433,19 @@ export const FlowchartDashboard: React.FC = () => {
         );
       })()}
 
+      {/* Clone Flowchart Modal */}
+      {cloneSourceFlowchart && (
+        <CloneFlowchartModal
+          sourceFlowchart={cloneSourceFlowchart}
+          isOpen={!!cloneSourceFlowchart}
+          onClose={() => setCloneSourceFlowchart(null)}
+          onSuccess={(cloned) => {
+            setFlowcharts((prev) => [cloned, ...prev]);
+            navigate(`/flowcharts/${cloned.id}`);
+          }}
+        />
+      )}
+
       <DataLayout
         resultCount={filteredProjects.length}
         error={error}
@@ -457,6 +473,7 @@ export const FlowchartDashboard: React.FC = () => {
                   onEdit={handleEdit}
                   onArchive={canArchive ? handleArchiveClick : undefined}
                   onViewHistory={handleViewHistory}
+                  onClone={handleClone}
                 />
               ))}
             </div>
@@ -469,6 +486,7 @@ export const FlowchartDashboard: React.FC = () => {
               onEdit={handleEdit}
               onArchive={canArchive ? handleArchiveClick : undefined}
               onViewHistory={handleViewHistory}
+              onClone={handleClone}
             />
           </div>
         }

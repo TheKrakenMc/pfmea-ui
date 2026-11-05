@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, History, ArrowUpRight } from 'lucide-react';
+import { Archive, History, ArrowUpRight, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DocumentStatus } from './DocumentStatus';
 import { formatDate } from '../../utils/dateUtils';
@@ -17,6 +17,7 @@ export interface DocumentCardProps {
   onOpen?: () => void;
   onArchive?: () => void;
   onHistory?: () => void;
+  onClone?: () => void;
   children?: ReactNode;
   openLabel?: string;
 }
@@ -33,6 +34,7 @@ export function DocumentCard({
   onOpen,
   onArchive,
   onHistory,
+  onClone,
   children,
   openLabel,
 }: DocumentCardProps) {
@@ -72,6 +74,17 @@ export function DocumentCard({
           <span>{formatDate(updatedAt || createdAt)}</span>
         </p>
         <div className="document-card-actions">
+          {onClone && (
+            <button
+              type="button"
+              className="ui-icon-button"
+              onClick={onClone}
+              title={t('clone', 'Clonar / Copiar pasos')}
+              aria-label={`${t('clone', 'Clonar')}: ${title}`}
+            >
+              <Copy size={17} />
+            </button>
+          )}
           {onHistory && (
             <button
               type="button"
