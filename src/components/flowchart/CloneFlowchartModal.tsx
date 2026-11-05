@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Copy, X, Loader2, ArrowRight, Layers, AlertCircle, Building2, FileText, CheckCircle2 } from 'lucide-react';
+import { Copy, X, Loader2, Layers, AlertCircle, Building2, FileText, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cloneFlowchart, listProducts, type FlowchartRead, type ProductRead } from '../../services/flowchartService';
 import { ProductSelect } from '../products/ProductSelect';

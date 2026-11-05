@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Copy, X, Loader2, AlertCircle, CheckCircle2, ChevronRight, Layers, ArrowDownCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle2, ChevronRight, Layers, ArrowDownCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getDocumentHeaders,
@@ -298,7 +298,7 @@ export const CopyStepsModal: React.FC<CopyStepsModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={submitting || !selectedSourceId || (sourceDetail && sourceDetail.steps?.length === 0)}
+                disabled={Boolean(submitting || !selectedSourceId || (sourceDetail && sourceDetail.steps?.length === 0))}
                 className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {submitting ? (

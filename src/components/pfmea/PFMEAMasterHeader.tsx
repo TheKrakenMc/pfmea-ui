@@ -98,7 +98,7 @@ export const PFMEAMasterHeader: React.FC<PFMEAMasterHeaderProps> = ({
     if (!canManage) return [current];
     const next: Record<string, string[]> = {
       Draft: ['In Review'],
-      In Review: ['Draft', 'Approved'],
+      'In Review': ['Draft', 'Approved'],
       Approved: ['Archived'],
       Archived: [],
     };
